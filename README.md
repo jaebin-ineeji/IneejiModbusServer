@@ -40,3 +40,42 @@ source .venv/bin/activate
 ```bash
 pip install --no-index --find-links=packages -r requirements.txt
 ```
+
+
+## 프로젝트 구조
+```
+project/
+├── app/
+│   ├── __init__.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── analog.py
+│   │   │   ├── digital.py
+│   │   │   └── health.py
+│   │   └── dependencies.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   └── logging_config.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── schemas.py
+│   └── services/
+│       ├── __init__.py
+│       ├── modbus/
+│       │   ├── __init__.py
+│       │   ├── client.py
+│       │   ├── analog.py
+│       │   └── digital.py
+│       └── exceptions.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_analog.py
+│   └── test_digital.py
+├── .env
+├── .gitignore
+├── requirements.txt
+└── README.md
+```
