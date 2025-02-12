@@ -1,5 +1,5 @@
 .cursorrules
-.cusor/
+.cursor/
 .venv/
 .vscode/
 __pycache__/
