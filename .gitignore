@@ -1,0 +1,12 @@
+.cursorrules
+.cusor/
+.venv/
+.vscode/
+__pycache__/
+packages/
+
+logs/
+
+.env
+.DS_Store
+DS_Store
