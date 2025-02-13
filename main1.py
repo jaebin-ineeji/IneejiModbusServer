@@ -12,8 +12,23 @@ from app.api.middleware import (
 from app.api.routes.analog import router as analog_router
 from app.api.routes.digital import router as digital_router
 from app.api.routes.health import router as health_router
+from app.api.routes.machine import router as machine_router
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+from app.services.modbus.client import ModbusClientManager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 시작할 때 실행할 코드
+    print("서버가 시작됩니다...")
+    yield
+    # 종료할 때 실행할 코드
+    ModbusClientManager.close_all()
+    print("서버가 종료됩니다...")
+
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS 설정
 app.add_middleware(
@@ -23,6 +38,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 미들웨어 추가
 app.middleware("http")(log_middleware)
@@ -34,6 +50,7 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 # 라우터 포함
 app.include_router(health_router)
+app.include_router(machine_router)
 app.include_router(analog_router)
 app.include_router(digital_router)
 

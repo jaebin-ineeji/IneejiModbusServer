@@ -1,7 +1,15 @@
 # app/api/dependencies.py
 from fastapi import Query
-from app.services.modbus.client import ModbusClientManager
+from app.services.modbus.client import ModbusClientManager, DatabaseClientManager
 from app.core.config import settings
+
+# 데이터베이스 인스턴스 생성
+db = DatabaseClientManager(settings.DATABASE_NAME)
+
+
+def get_database_client():
+    return db
+
 
 async def get_modbus_client(
     host: str = Query(
