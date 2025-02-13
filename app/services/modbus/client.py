@@ -6,7 +6,7 @@ from app.services.exceptions import ModbusConnectionError
 
 
 class ModbusClientManager:
-    def __init__(self, host: str, port: int, slave: int = 1):
+    def __init__(self, host: str, port: int, slave: int):
         self.host = host
         self.port = port
         self.slave = slave
@@ -24,3 +24,10 @@ class ModbusClientManager:
         finally:
             if self._client:
                 self._client.close()
+
+    async def test_connection(self):
+        try:
+            with self.connect():
+                return True
+        except Exception:
+            return False

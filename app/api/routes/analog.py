@@ -27,3 +27,12 @@ async def write_analog(
     service = AnalogService(client)
     result = await service.write_value(register, value)
     return ApiResponse(success=True, message="아날로그 값 쓰기 성공", data=result)
+
+
+@router.get("/all")
+async def read_all_analog(
+    client: ModbusClientManager = Depends(get_modbus_client),
+):
+    service = AnalogService(client)
+    result = await service.read_all_values()
+    return ApiResponse(success=True, message="모든 아날로그 값 읽기 성공", data=result)
