@@ -9,8 +9,8 @@ from app.api.middleware import (
     log_middleware,
     validation_exception_handler,
 )
-from app.api.routes.analog import router as analog_router
-from app.api.routes.digital import router as digital_router
+from app.api.routes.direct.analog import router as analog_router
+from app.api.routes.direct.digital import router as digital_router
 from app.api.routes.health import router as health_router
 from app.api.routes.machine import router as machine_router
 

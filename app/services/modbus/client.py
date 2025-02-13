@@ -6,7 +6,7 @@ from pymodbus.client import ModbusTcpClient
 from contextlib import contextmanager
 import os
 from app.core.logging_config import setup_logger
-from app.models.schemas import MachineConfig, TagConfig
+from app.models.schemas import DataType, MachineConfig, Permission, TagConfig
 from app.core.config import settings
 from app.services.exceptions import ModbusConnectionError
 
@@ -257,10 +257,10 @@ class DatabaseClientManager:
             ) in cursor.fetchall():
                 if machine_name in machines:
                     machines[machine_name].tags[logical_name] = TagConfig(
-                        data_type=data_type,
+                        data_type=DataType(data_type),
                         logical_register=logical_register,
                         real_register=real_register,
-                        permission=permission,
+                        permission=Permission(permission),
                         slave=slave,
                     )
 

@@ -6,7 +6,7 @@ from app.models.validator import DigitalRegisterInput
 from app.services.modbus.client import ModbusClientManager
 from app.services.modbus.digital import DigitalService
 
-router = APIRouter(prefix="/digital", tags=["digital"])
+router = APIRouter(prefix="/direct/digital", tags=["Direct digital"])
 
 
 @router.get("/{register_bit}")

@@ -5,7 +5,7 @@ from app.models.schemas import ApiResponse
 from app.services.modbus.client import ModbusClientManager
 from app.services.modbus.analog import AnalogService
 
-router = APIRouter(prefix="/analog", tags=["analog"])
+router = APIRouter(prefix="/direct/analog", tags=["Direct analog"])
 
 
 @router.get("/{register}")
