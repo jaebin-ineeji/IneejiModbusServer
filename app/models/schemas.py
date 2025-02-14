@@ -9,7 +9,14 @@ class ApiResponse(BaseModel):
     data: Optional[Any] = None
 
 
-class DataType(str, Enum):
+class Mode(str, Enum):
+    AUTO = "AUTO"
+    MANUAL = "MANUAL"
+    LOCAL = "LOCAL"
+    REMOTE = "REMOTE"
+
+
+class TagType(str, Enum):
     ANALOG = "Analog"
     DIGITAL = "Digital"
     DIGITAL_AM = "DigitalAM"
@@ -22,13 +29,14 @@ class Permission(str, Enum):
 
 
 class TagConfig(BaseModel):
-    data_type: DataType
+    tag_type: TagType
     logical_register: str
     real_register: str
     permission: Permission
-    slave: int
 
 
 class MachineConfig(BaseModel):
     ip: str
+    port: int
+    slave: int
     tags: Dict[str, TagConfig]

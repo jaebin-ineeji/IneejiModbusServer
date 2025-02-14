@@ -1,5 +1,9 @@
+from app.models.schemas import Mode
 from app.services.exceptions import ModbusReadError, ModbusWriteError
 from app.services.modbus.client import ModbusClientManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DigitalService:
@@ -43,8 +47,8 @@ class DigitalService:
 
 def _get_digital_status_message(
     result: int, type: int, *, bit_position: int = 0
-) -> str:
+) -> Mode:
     if type == 0:
-        return "AUTO" if (result >> bit_position & 1) == 0 else "MANUAL"
+        return Mode.AUTO if (result >> bit_position & 1) == 0 else Mode.MANUAL
     else:
-        return "LOCAL" if (result >> bit_position & 1) == 0 else "REMOTE"
+        return Mode.LOCAL if (result >> bit_position & 1) == 0 else Mode.REMOTE

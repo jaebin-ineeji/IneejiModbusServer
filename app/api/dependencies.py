@@ -2,6 +2,7 @@
 from fastapi import Query
 from app.services.modbus.client import ModbusClientManager, DatabaseClientManager
 from app.core.config import settings
+from app.services.modbus.machine import MachineService
 
 # 데이터베이스 인스턴스 생성
 db = DatabaseClientManager(settings.DATABASE_NAME)
@@ -32,3 +33,13 @@ async def get_modbus_client_by_ip(
     ),
 ) -> ModbusClientManager:
     return ModbusClientManager(host=host, port=port, slave=slave)
+
+
+async def get_modbus_client_by_machine_name(
+    machine_name: str,
+) -> ModbusClientManager:
+    machine_service = MachineService(db)
+    machine_config = machine_service.get_machine_config(machine_name)
+    return ModbusClientManager(
+        host=machine_config.ip, port=machine_config.port, slave=machine_config.slave
+    )

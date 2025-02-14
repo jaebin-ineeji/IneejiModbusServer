@@ -79,3 +79,27 @@ project/
 ├── requirements.txt
 └── README.md
 ```
+
+```sql
+-- machines 테이블 생성
+CREATE TABLE machines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    ip_address TEXT NOT NULL,
+    port INTEGER NOT NULL,
+    slave INTEGER NOT NULL
+)
+
+-- tags 테이블 생성
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id INTEGER NOT NULL,
+    tag_name TEXT NOT NULL,
+    tag_type TEXT NOT NULL,
+    logical_register TEXT NOT NULL,
+    real_register TEXT NOT NULL,
+    permission TEXT NOT NULL,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE
+)
+
+```

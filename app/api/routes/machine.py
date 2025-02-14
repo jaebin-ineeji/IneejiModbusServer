@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.config import settings
-from app.api.dependencies import get_database_client
+from app.api.dependencies import get_database_client, get_modbus_client_by_machine_name
 from app.models.schemas import TagConfig
-from app.services.modbus.client import DatabaseClientManager
+from app.services.modbus.client import DatabaseClientManager, ModbusClientManager
 from functools import lru_cache
 
 from app.services.modbus.machine import MachineService
@@ -25,13 +25,15 @@ async def get_machines_config():
 async def add_machine(
     machine_name: str,
     ip_address: str,
+    port: int,
+    slave: int,
     db: DatabaseClientManager = Depends(get_database_client),
 ):
     """새로운 기계를 추가하고 설정을 갱신"""
     machine_name = machine_name.upper()
     db.execute_query(
-        "INSERT INTO machines (name, ip_address) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET ip_address = ?",
-        (machine_name, ip_address, ip_address),
+        "INSERT INTO machines (name, ip_address, port, slave) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET ip_address = ?, port = ?, slave = ?",
+        (machine_name, ip_address, port, slave, ip_address, port, slave),
     )
 
     db.load_modbus_config()
@@ -60,7 +62,7 @@ async def add_tag(
     # db: DatabaseClientManager = Depends(get_database_client),
     machine_service: MachineService = Depends(get_machine_service),
 ):
-    """특정 기계에 태그 추가"""
+    """특정 기계에 태그 추가 후 설정 갱신"""
     machine_service.add_machine_tag(machine_name, tag_name, tag_data)
     return {"message": f"Tag {tag_name} added to {machine_name}"}
 
@@ -71,7 +73,54 @@ async def delete_tag(
     tag_name: str,
     machine_service: MachineService = Depends(get_machine_service),
 ):
-    """특정 기계에서 태그 삭제"""
+    """특정 기계에서 태그 삭제 후 설정 갱신"""
     machine_service.delete_machine_tag(machine_name, tag_name)
 
     return {"message": f"Tag {tag_name} deleted from {machine_name}"}
+
+
+@router.get("/{machine_name}/tags")
+async def get_tags(
+    machine_name: str,
+    machine_service: MachineService = Depends(get_machine_service),
+):
+    """특정 기계의 모든 태그 반환"""
+    return machine_service.get_machine_tags(machine_name)
+
+
+@router.get("/{machine_name}/tags/{tag_name}")
+async def get_tag(
+    machine_name: str,
+    tag_name: str,
+    machine_service: MachineService = Depends(get_machine_service),
+):
+    return machine_service.get_machine_tag_by_name(machine_name, tag_name)
+
+
+@router.put("/{machine_name}/tags/{tag_name}")
+async def update_tag(
+    machine_name: str,
+    tag_name: str,
+    tag_data: TagConfig,
+    machine_service: MachineService = Depends(get_machine_service),
+):
+    machine_service.update_machine_tag(machine_name, tag_name, tag_data)
+    return {"message": f"Tag {tag_name} updated for {machine_name}"}
+
+
+@router.get("/{machine_name}/tags/{tag_name}/value")
+async def get_tag_value(
+    machine_name: str,
+    tag_name: str,
+    machine_service: MachineService = Depends(get_machine_service),
+    client: ModbusClientManager = Depends(get_modbus_client_by_machine_name),
+):
+    machine_service.client_manager = client
+
+    tag_value = await machine_service.get_machine_tag_value(machine_name, tag_name)
+
+    return {
+        "machine_name": machine_name.upper(),
+        "tag_name": tag_name.upper(),
+        "value": tag_value,
+    }

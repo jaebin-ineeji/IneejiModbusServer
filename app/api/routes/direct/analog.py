@@ -1,4 +1,4 @@
-# app/api/routes/analog.py
+# app/api/routes/direct/analog.py
 from fastapi import APIRouter, Depends, Path, Query
 from app.api.dependencies import get_modbus_client_by_ip
 from app.models.schemas import ApiResponse

@@ -1,13 +1,16 @@
+from typing import Dict, Optional
 from fastapi import HTTPException
-from app.models.schemas import DataType, MachineConfig, Permission, TagConfig
+from app.models.schemas import TagType, MachineConfig, Mode, Permission, TagConfig
 from app.models.validator import validate_tag_config
 from app.services.modbus.client import DatabaseClientManager, ModbusClientManager
 from app.core.config import settings
+from app.services.modbus.analog import AnalogService
+from app.services.modbus.digital import DigitalService
 
 
 class MachineService:
     def __init__(self, db: DatabaseClientManager):
-        # self.client_manager = client_manager
+        self.client_manager: Optional[ModbusClientManager] = None
         self.db = db
 
     def get_all_machine_names(self) -> list[str]:
@@ -16,14 +19,50 @@ class MachineService:
     def get_all_machines(self) -> list[MachineConfig]:
         return list(settings.MODBUS_MACHINES.values())
 
-    def get_machine_ip(self, machine_name: str) -> str:
-        return settings.MODBUS_MACHINES[machine_name].ip
+    def get_machine_config(self, machine_name: str) -> MachineConfig:
+        machine_name = machine_name.upper()
+        return settings.MODBUS_MACHINES[machine_name]
 
-    def get_machine_tags(self, machine_name: str) -> list[TagConfig]:
-        return list(settings.MODBUS_MACHINES[machine_name].tags.values())
+    def get_machine_tags(self, machine_name: str) -> Dict[str, TagConfig]:
+        """특정 기계의 모든 태그 반환"""
+        machine_name = machine_name.upper()
+        return settings.MODBUS_MACHINES[machine_name].tags
 
     def get_machine_tag_by_name(self, machine_name: str, tag_name: str) -> TagConfig:
+        machine_name = machine_name.upper()
+        tag_name = tag_name.upper()
         return settings.MODBUS_MACHINES[machine_name].tags[tag_name]
+
+    async def get_machine_tag_value(
+        self, machine_name: str, tag_name: str
+    ) -> str | int | Mode:
+        if self.client_manager is not None:
+            tag_config = self.get_machine_tag_by_name(machine_name, tag_name)
+            if tag_config.tag_type == TagType.ANALOG:
+                register = int(tag_config.real_register)
+                result = await AnalogService(self.client_manager).read_value(register)
+                return result
+            elif (
+                tag_config.tag_type == TagType.DIGITAL
+                or tag_config.tag_type == TagType.DIGITAL_AM
+                or tag_config.tag_type == TagType.DIGITAL_RM
+            ):
+                register, bit = tag_config.real_register.split(".")
+                if tag_config.tag_type == TagType.DIGITAL_AM:
+                    result = await DigitalService(self.client_manager).read_bit(
+                        int(register), int(bit), 0
+                    )
+                elif tag_config.tag_type == TagType.DIGITAL_RM:
+                    result = await DigitalService(self.client_manager).read_bit(
+                        int(register), int(bit), 1
+                    )
+                return result
+            else:
+                raise HTTPException(status_code=500, detail="Invalid tag data type")
+        else:
+            raise HTTPException(
+                status_code=500, detail="Client manager is not initialized"
+            )
 
     def add_machine_tag(self, machine_name: str, tag_name: str, tag_config: TagConfig):
         try:
@@ -36,7 +75,7 @@ class MachineService:
 
             # 태그 중복 검사
             existing_tag = self.db.execute_query(
-                "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND logical_name = ?",
+                "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND tag_name = ?",
                 (machine_id, tag_name),
             )
 
@@ -72,7 +111,7 @@ class MachineService:
 
             # 태그 존재 여부 확인
             tag_exists = self.db.execute_query(
-                "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND logical_name = ?",
+                "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND tag_name = ?",
                 (machine_id, tag_name),
             )
 
@@ -85,16 +124,15 @@ class MachineService:
             self.db.execute_query(
                 """
                 UPDATE tags 
-                SET data_type = ?, logical_register = ?, real_register = ?, 
-                    permission = ?, slave = ?
-                WHERE machine_id = ? AND logical_name = ?
+                SET tag_type = ?, logical_register = ?, real_register = ?, 
+                    permission = ?
+                WHERE machine_id = ? AND tag_name = ?
                 """,
                 (
-                    validated_config.data_type,
+                    validated_config.tag_type,
                     validated_config.logical_register,
                     validated_config.real_register,
                     validated_config.permission,
-                    validated_config.slave,
                     machine_id,
                     tag_name,
                 ),
@@ -117,7 +155,7 @@ class MachineService:
         machine_id = self._get_machine_id(machine_name)
         # 태그 존재 여부 확인
         tag_exists = self.db.execute_query(
-            "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND logical_name = ?",
+            "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND tag_name = ?",
             (machine_id, tag_name),
         )
 
@@ -128,7 +166,7 @@ class MachineService:
 
         # 태그 삭제
         self.db.execute_query(
-            "DELETE FROM tags WHERE machine_id = ? AND logical_name = ?",
+            "DELETE FROM tags WHERE machine_id = ? AND tag_name = ?",
             (machine_id, tag_name),
         )
 
@@ -155,16 +193,15 @@ class MachineService:
         self.db.execute_query(
             """
             INSERT INTO tags 
-            (machine_id, logical_name, data_type, logical_register, real_register, permission, slave)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (machine_id, tag_name, tag_type, logical_register, real_register, permission)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
                 machine_id,
                 tag_name,
-                tag_config.data_type,
+                tag_config.tag_type,
                 tag_config.logical_register,
                 tag_config.real_register,
                 tag_config.permission,
-                tag_config.slave,
             ),
         )

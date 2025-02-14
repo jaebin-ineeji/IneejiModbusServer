@@ -1,3 +1,4 @@
+# app/api/routes/direct/digital.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies import get_modbus_client_by_ip
