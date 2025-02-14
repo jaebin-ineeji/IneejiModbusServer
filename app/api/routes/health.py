@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.api.dependencies import get_modbus_client
+from app.api.dependencies import get_modbus_client_by_ip
 from app.models.schemas import ApiResponse
 from app.services.modbus.client import ModbusClientManager
 
@@ -13,6 +13,6 @@ async def health_check():
 
 @router.get("/test-connection")
 async def test_connection(
-    client: ModbusClientManager = Depends(get_modbus_client),
+    client: ModbusClientManager = Depends(get_modbus_client_by_ip),
 ):
     return await client.test_connection()

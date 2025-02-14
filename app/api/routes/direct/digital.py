@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.dependencies import get_modbus_client
+from app.api.dependencies import get_modbus_client_by_ip
 from app.models.schemas import ApiResponse
 from app.models.validator import DigitalRegisterInput
 from app.services.modbus.client import ModbusClientManager
@@ -18,7 +18,7 @@ async def read_digital(
         ge=0,
         le=1,
     ),
-    client: ModbusClientManager = Depends(get_modbus_client),
+    client: ModbusClientManager = Depends(get_modbus_client_by_ip),
 ):
     """
     디지털 값을 읽는 엔드포인트
@@ -46,7 +46,7 @@ async def write_digital(
         ge=0,
         le=1,
     ),
-    client: ModbusClientManager = Depends(get_modbus_client),
+    client: ModbusClientManager = Depends(get_modbus_client_by_ip),
 ):
     try:
         register, bit = param.parse_values()

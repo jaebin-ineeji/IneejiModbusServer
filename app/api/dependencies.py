@@ -11,7 +11,7 @@ def get_database_client():
     return db
 
 
-async def get_modbus_client(
+async def get_modbus_client_by_ip(
     host: str = Query(
         ...,
         description="원격 호스트 주소 (예: 172.30.1.97)",

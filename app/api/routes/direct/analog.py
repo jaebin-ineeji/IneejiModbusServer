@@ -1,6 +1,6 @@
 # app/api/routes/analog.py
 from fastapi import APIRouter, Depends, Path, Query
-from app.api.dependencies import get_modbus_client
+from app.api.dependencies import get_modbus_client_by_ip
 from app.models.schemas import ApiResponse
 from app.services.modbus.client import ModbusClientManager
 from app.services.modbus.analog import AnalogService
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/direct/analog", tags=["Direct analog"])
 @router.get("/{register}")
 async def read_analog(
     register: int = Path(..., ge=0, le=65535),
-    client: ModbusClientManager = Depends(get_modbus_client),
+    client: ModbusClientManager = Depends(get_modbus_client_by_ip),
 ):
     service = AnalogService(client)
     value = await service.read_value(register)
@@ -22,7 +22,7 @@ async def read_analog(
 async def write_analog(
     register: int = Path(..., ge=0, le=65535),
     value: int = Query(..., ge=0, le=65535),
-    client: ModbusClientManager = Depends(get_modbus_client),
+    client: ModbusClientManager = Depends(get_modbus_client_by_ip),
 ):
     service = AnalogService(client)
     result = await service.write_value(register, value)
@@ -31,7 +31,7 @@ async def write_analog(
 
 @router.get("/all")
 async def read_all_analog(
-    client: ModbusClientManager = Depends(get_modbus_client),
+    client: ModbusClientManager = Depends(get_modbus_client_by_ip),
 ):
     service = AnalogService(client)
     result = await service.read_all_values()
