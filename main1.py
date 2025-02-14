@@ -55,4 +55,4 @@ app.include_router(digital_router)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main1:app", host="0.0.0.0", port=4444)
+    uvicorn.run("main1:app", host="0.0.0.0", port=4444, reload=True)

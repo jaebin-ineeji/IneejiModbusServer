@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from app.core.config import settings
 from app.api.dependencies import get_database_client, get_modbus_client_by_machine_name
-from app.models.schemas import TagConfig
+from app.models.schemas import ApiResponse, TagConfig
 from app.services.modbus.client import DatabaseClientManager, ModbusClientManager
 from functools import lru_cache
 
@@ -88,8 +88,8 @@ async def get_tags(
     return machine_service.get_machine_tags(machine_name)
 
 
-@router.get("/{machine_name}/tags/{tag_name}")
-async def get_tag(
+@router.get("/{machine_name}/tags/{tag_name}/config")
+async def get_tag_config(
     machine_name: str,
     tag_name: str,
     machine_service: MachineService = Depends(get_machine_service),
@@ -108,7 +108,7 @@ async def update_tag(
     return {"message": f"Tag {tag_name} updated for {machine_name}"}
 
 
-@router.get("/{machine_name}/tags/{tag_name}/value")
+@router.get("/{machine_name}/tags/{tag_name}")
 async def get_tag_value(
     machine_name: str,
     tag_name: str,
@@ -117,10 +117,31 @@ async def get_tag_value(
 ):
     machine_service.client_manager = client
 
-    tag_value = await machine_service.get_machine_tag_value(machine_name, tag_name)
+    result = await machine_service.read_machine_tag_value(machine_name, tag_name)
 
     return {
         "machine_name": machine_name.upper(),
         "tag_name": tag_name.upper(),
-        "value": tag_value,
+        "value": result,
     }
+
+@router.post("/{machine_name}/tags/{tag_name}")
+async def set_tag_value(
+    machine_name: str,
+    tag_name: str,
+    tag_value: str = Query("*", description="태그 값"),
+    machine_service: MachineService = Depends(get_machine_service),
+    client: ModbusClientManager = Depends(get_modbus_client_by_machine_name),
+):
+    machine_service.client_manager = client
+    try:
+        result = await machine_service.write_machine_tag_value(machine_name, tag_name, tag_value)
+        return ApiResponse(
+            success=True,
+            message=result.get("message", str(result)) if isinstance(result, dict) else str(result),
+        )
+    except Exception as e:
+        return ApiResponse(
+            success=False,
+            message=str(e),
+        )
