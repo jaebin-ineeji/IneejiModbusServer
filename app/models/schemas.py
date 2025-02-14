@@ -40,3 +40,17 @@ class MachineConfig(BaseModel):
     port: int
     slave: int
     tags: Dict[str, TagConfig]
+
+
+# 태그설정 벌크 임포트/익스포트 스키마
+class TagConfigFormat(BaseModel):
+    tag_type: str
+    logical_register: str
+    real_register: str
+    permission: str
+
+class MachineConfigFormat(BaseModel):
+    ip: str
+    port: int
+    slave: int
+    tags: Dict[str, TagConfigFormat]
