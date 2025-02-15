@@ -12,10 +12,12 @@ from app.api.routes.config import router as config_router
 from app.api.exceptions import (
     http_exception_handler,
     validation_exception_handler,
+    custom_exception_handler,
     general_exception_handler,
 )
 
 from contextlib import asynccontextmanager
+from app.services.exceptions import CustomException
 from app.services.modbus.client import ModbusClientManager
 
 
@@ -42,16 +44,20 @@ app.add_middleware(
 
 # 전역 예외 핸들러 등록
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
+async def app_general_exception_handler(request: Request, exc: Exception):
     return await general_exception_handler(request, exc)
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def app_http_exception_handler(request: Request, exc: HTTPException):
     return await http_exception_handler(request, exc)
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def app_validation_exception_handler(request: Request, exc: RequestValidationError):
     return await validation_exception_handler(request, exc)
+
+@app.exception_handler(CustomException)
+async def app_custom_exception_handler(request: Request, exc: CustomException):
+    return await custom_exception_handler(request, exc)
 
 # 미들웨어 추가
 app.middleware("http")(log_middleware)
