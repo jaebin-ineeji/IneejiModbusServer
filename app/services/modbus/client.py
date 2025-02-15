@@ -8,7 +8,7 @@ import os
 from app.core.logging_config import setup_logger
 from app.models.schemas import TagType, MachineConfig, Permission, TagConfig
 from app.core.config import settings
-from app.services.exceptions import ModbusConnectionError
+from app.services.exceptions import CustomException, ErrorCode, ModbusConnectionError
 
 logger = setup_logger(__name__)
 
@@ -126,7 +126,11 @@ class DatabaseClientManager:
 
             except sqlite3.Error as e:
                 logger.error(f"데이터베이스 연결 실패: {e}")
-                raise
+                raise CustomException(
+                    error_code=ErrorCode.DATABASE_ERROR,
+                    status_code=500,
+                    message=f"데이터베이스 연결 실패: {e}"
+                )
 
         try:
             yield self._connection
@@ -134,7 +138,11 @@ class DatabaseClientManager:
         except Exception as e:
             self._connection.rollback()
             logger.error(f"데이터베이스 작업 실패: {e}")
-            raise
+            raise CustomException(
+                error_code=ErrorCode.DATABASE_ERROR,
+                status_code=500,
+                message=f"데이터베이스 작업 실패: {e}"
+            )
         finally:
             if self._connection:
                 self._connection.close()
@@ -182,7 +190,11 @@ class DatabaseClientManager:
                     )
             except sqlite3.Error as e:
                 logger.error(f"데이터베이스 생성 중 오류 발생: {e}")
-                raise
+                raise CustomException(
+                    error_code=ErrorCode.DATABASE_ERROR,
+                    status_code=500,
+                    message=f"데이터베이스 생성 중 오류 발생: {e}"
+                )
         else:
             logger.info(
                 f"데이터베이스 '{self.db_name}'가 이미 존재해서 생성을 건너뜁니다."
@@ -208,7 +220,11 @@ class DatabaseClientManager:
                 return [dict(row) for row in cursor.fetchall()]
             except sqlite3.Error as e:
                 logger.error(f"쿼리 실행 실패: {e}\n쿼리: {query}\n파라미터: {params}")
-                raise
+                raise CustomException(
+                    error_code=ErrorCode.DATABASE_ERROR,
+                    status_code=500,
+                    message=f"쿼리 실행 실패: {e}\n쿼리: {query}\n파라미터: {params}"
+                )
 
     def execute_many(self, query: str, params_list: list[tuple]) -> None:
         """여러 SQL 쿼리를 한 번에 실행
@@ -226,7 +242,11 @@ class DatabaseClientManager:
                 cursor.executemany(query, params_list)
             except sqlite3.Error as e:
                 logger.error(f"대량 쿼리 실행 실패: {e}\n쿼리: {query}")
-                raise
+                raise CustomException(
+                    error_code=ErrorCode.DATABASE_ERROR,
+                    status_code=500,
+                    message=f"대량 쿼리 실행 실패: {e}\n쿼리: {query}"
+                )
 
     def load_modbus_config(self) -> Dict[str, MachineConfig]:
         """SQLite에서 모든 기계의 IP 및 등록된 태그 데이터를 불러오는 함수"""

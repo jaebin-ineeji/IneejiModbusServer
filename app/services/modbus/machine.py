@@ -1,7 +1,8 @@
 from typing import Dict, Optional
 from fastapi import HTTPException
-from app.models.schemas import TagType, MachineConfig, Mode, Permission, TagConfig
+from app.models.schemas import TagType, MachineConfig, Mode, Permission, TagConfig, ServiceResult
 from app.models.validator import validate_tag_config
+from app.services.exceptions import CustomException, ErrorCode
 from app.services.modbus.client import DatabaseClientManager, ModbusClientManager
 from app.core.config import settings
 from app.services.modbus.analog import AnalogService
@@ -13,13 +14,20 @@ class MachineService:
         self.client_manager: Optional[ModbusClientManager] = None
         self.db = db
 
-    def get_all_machine_names(self) -> list[str]:
-        """모든 기계 이름을 반환하는 메소드"""
-        return list(settings.MODBUS_MACHINES.keys())
+    # def get_all_machine_names(self) -> list[str]:
+    #     """모든 기계 이름을 반환하는 메소드"""
+    #     return list(settings.MODBUS_MACHINES.keys())
+    # def get_all_machine_configs(self) -> list[MachineConfig]:
+    #     """모든 기계 설정을 반환하는 메소드"""
+    #     return list(settings.MODBUS_MACHINES.values())
 
-    def get_all_machines(self) -> list[MachineConfig]:
+    def get_all_machines(self) -> ServiceResult:
         """모든 기계 설정을 반환하는 메소드"""
-        return list(settings.MODBUS_MACHINES.values())
+        return ServiceResult(
+                success=True,
+                message="기계 목록 조회 성공",
+                data=settings.MODBUS_MACHINES
+            )
 
     def get_machine_config(self, machine_name: str) -> MachineConfig:
         """기계 설정을 반환하는 메소드"""
@@ -27,29 +35,30 @@ class MachineService:
             machine_name = machine_name.upper()
             return settings.MODBUS_MACHINES[machine_name]
         except KeyError:
-            raise HTTPException(
-                status_code=404, detail=f"기계 '{machine_name}'를 찾을 수 없습니다."
+            raise CustomException(
+                error_code=ErrorCode.MACHINE_NOT_FOUND,
+                message=f"기계 '{machine_name}'를 찾을 수 없습니다."
             )
 
     def get_machine_tags(self, machine_name: str) -> Dict[str, TagConfig]:
         """특정 기계의 모든 태그 반환"""
-        try:
-            machine_name = machine_name.upper()
-            return settings.MODBUS_MACHINES[machine_name].tags
-        except KeyError:
-            raise HTTPException(
-                status_code=404, detail=f"기계 '{machine_name}'를 찾을 수 없습니다."
-            )
+
+        machine_name = machine_name.upper()
+        machine_config = self.get_machine_config(machine_name)
+        return machine_config.tags
 
     def get_machine_tag_by_name(self, machine_name: str, tag_name: str) -> TagConfig:
         """기계의 특정 태그 설정을 반환하는 메소드"""
         try:
             machine_name = machine_name.upper()
             tag_name = tag_name.upper()
-            return settings.MODBUS_MACHINES[machine_name].tags[tag_name]
+            machine_config = self.get_machine_config(machine_name)
+            return machine_config.tags[tag_name]
         except KeyError:
-            raise HTTPException(
-                status_code=404, detail=f"태그 '{tag_name}'를 찾을 수 없습니다."
+            raise CustomException(
+                error_code=ErrorCode.TAG_NOT_FOUND,
+                status_code=404,
+                message=f"{machine_name} 기계의 태그 '{tag_name}'를 찾을 수 없습니다."
             )
 
     async def read_machine_tag_value(
@@ -77,15 +86,19 @@ class MachineService:
                     )
                 return result
             else:
-                raise HTTPException(status_code=500, detail="Invalid tag data type")
+                raise CustomException(
+                    error_code=ErrorCode.INVALID_TAG_TYPE,
+                    message="태그 타입이 올바르지 않습니다."
+                )
         else:
-            raise HTTPException(
-                status_code=500, detail="Client manager is not initialized"
+            raise CustomException(
+                error_code=ErrorCode.MODBUS_CONNECTION_ERROR,
+                message="모드버스 클라이언트가 초기화되지 않았습니다."
             )
 
     async def write_machine_tag_value(
         self, machine_name: str, tag_name: str, tag_value: str
-    ):
+    ) -> Optional[ServiceResult]:
         tag_config = self.get_machine_tag_by_name(machine_name, tag_name)
         if self.client_manager is not None:
             if tag_config.tag_type == TagType.ANALOG:
@@ -93,17 +106,25 @@ class MachineService:
                     result = await AnalogService(self.client_manager).write_value(
                         int(tag_config.real_register), int(tag_value)
                     )
-                    return {
-                        "message": f"태그 {tag_name}의 값이 {result}로 변경되었습니다."
-                    }
+                    return ServiceResult(
+                        success=True,
+                        message=f"{machine_name.upper()} 기계의 태그 {tag_name.upper()}의 값이 {result}로 변경되었습니다.",
+                        data=result
+                    )
                 elif (
                     tag_config.permission == Permission.READ_WRITE and tag_value == "*"
                 ):
-                    raise HTTPException(
-                        status_code=403, detail="태그 값을 입력해주세요."
+                    raise CustomException(
+                        error_code=ErrorCode.INVALID_TAG_VALUE,
+                        status_code=403,
+                        message="태그 값을 입력해주세요."
                     )
                 else:
-                    raise HTTPException(status_code=403, detail="읽기 전용 태그입니다.")
+                    raise CustomException(
+                        error_code=ErrorCode.TAG_READ_ONLY,
+                        status_code=403,
+                        message="읽기 전용 태그입니다."
+                    )
             elif tag_config.tag_type == TagType.DIGITAL_AM:
                 register, bit = tag_config.real_register.split(".")
                 tag_value = tag_value.upper()
@@ -113,16 +134,19 @@ class MachineService:
                     elif tag_value == Mode.MANUAL:
                         mode = True
                     else:
-                        raise HTTPException(
+                        raise CustomException(
+                            error_code=ErrorCode.CHECK_MODE_VALUE,
                             status_code=403,
-                            detail="모드 값을 확인해주세요. (AUTO, MANUAL)",
+                            message="모드 값을 확인해주세요. (AUTO, MANUAL)",
                         )
                     result = await DigitalService(self.client_manager).write_bit(
                         register=int(register), bit=int(bit), state=mode, type=0
                     )
-                    return {
-                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
-                    }
+                    return ServiceResult(
+                        success=True,
+                        message=f"{machine_name.upper()} 기계의 태그 {tag_name.upper()}의 모드가 {result}로 변경되었습니다.",
+                        data=result
+                    )
                 elif (
                     tag_config.permission == Permission.READ_WRITE and tag_value == "*"
                 ):
@@ -135,11 +159,17 @@ class MachineService:
                     result = await service.write_bit(
                         register=int(register), bit=int(bit), state=mode, type=0
                     )
-                    return {
-                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
-                    }
+                    return ServiceResult(
+                        success=True,
+                        message=f"{machine_name.upper()} 기계의 태그 {tag_name.upper()}의 모드가 {result}로 변경되었습니다.",
+                        data=result
+                    )
                 else:
-                    raise HTTPException(status_code=403, detail="읽기 전용 태그입니다.")
+                    raise CustomException(
+                        error_code=ErrorCode.TAG_READ_ONLY,
+                        status_code=403,
+                        message="읽기 전용 태그입니다."
+                    )
             elif tag_config.tag_type == TagType.DIGITAL_RM:
                 register, bit = tag_config.real_register.split(".")
                 tag_value = tag_value.upper()
@@ -149,16 +179,19 @@ class MachineService:
                     elif tag_value == Mode.REMOTE:
                         mode = True
                     else:
-                        raise HTTPException(
+                        raise CustomException(
+                            error_code=ErrorCode.CHECK_MODE_VALUE,
                             status_code=403,
-                            detail="모드 값을 확인해주세요. (LOCAL, REMOTE)",
+                            message="모드 값을 확인해주세요. (LOCAL, REMOTE)",
                         )
                     result = await DigitalService(self.client_manager).write_bit(
                         register=int(register), bit=int(bit), state=mode, type=1
                     )
-                    return {
-                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
-                    }
+                    return ServiceResult(
+                        success=True,
+                        message=f"{machine_name.upper()} 기계의 태그 {tag_name.upper()}의 모드가 {result}로 변경되었습니다.",
+                        data=result
+                    )
                 elif (
                     tag_config.permission == Permission.READ_WRITE and tag_value == "*"
                 ):
@@ -171,96 +204,125 @@ class MachineService:
                     result = await service.write_bit(
                         register=int(register), bit=int(bit), state=mode, type=1
                     )
-                    return {
-                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
-                    }
+                    return ServiceResult(
+                        success=True,
+                        message=f"{machine_name.upper()} 기계의 태그 {tag_name.upper()}의 모드가 {result}로 변경되었습니다.",
+                        data=result
+                    )
                 else:
-                    raise HTTPException(status_code=403, detail="읽기 전용 태그입니다.")
+                    raise CustomException(
+                        error_code=ErrorCode.TAG_READ_ONLY,
+                        status_code=403,
+                        message="읽기 전용 태그입니다."
+                    )
         else:
-            raise HTTPException(
-                status_code=500, detail="Client manager is not initialized"
+            raise CustomException(
+                error_code=ErrorCode.MODBUS_CONNECTION_ERROR,
+                message="모드버스 클라이언트가 초기화되지 않았습니다."
             )
 
-    def add_machine_tag(self, machine_name: str, tag_name: str, tag_config: TagConfig):
+    def add_machine(self, machine_name: str, machine_config: MachineConfig) -> ServiceResult:
         try:
-            # 태그 설정 검증
-            validated_config = validate_tag_config(tag_config)
-
-            # 태그 중복 검사
-            if self._check_tag_exists(machine_name, tag_name):
-                raise HTTPException(
-                    status_code=409, detail=f"태그 '{tag_name}'가 이미 존재합니다."
-                )
-
-            # 태그 추가 실행
-            self._add_tag_to_machine(machine_name, tag_name, validated_config)
-
-            self.db.load_modbus_config()
-            return {"message": f"태그 {tag_name}가 {machine_name}에 추가되었습니다."}
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"태그 추가 중 오류가 발생했습니다: {str(e)}"
+            machine_name = machine_name.upper()
+            self.db.execute_query(
+                "INSERT INTO machines (name, ip_address, port, slave) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET ip_address = ?, port = ?, slave = ?",
+                (machine_name, machine_config.ip, machine_config.port, machine_config.slave, machine_config.ip, machine_config.port, machine_config.slave),
             )
+            self.db.load_modbus_config()
+            return ServiceResult(
+                success=True,
+                message=f"기계 {machine_name} 추가/수정 완료",
+                data=machine_config
+            )
+        except Exception as e:
+            raise CustomException(
+                error_code=ErrorCode.MACHINE_ADD_ERROR,
+                message=f"기계 추가중 오류가 발생했습니다: {str(e)}"
+            )
+        
+    def delete_machine(self, machine_name: str) -> ServiceResult:
+        machine_name = machine_name.upper()
+        machine_id = self._get_machine_id(machine_name)
+        self.db.execute_query(
+            "DELETE FROM machines WHERE id = ?",
+            (machine_id,)
+        )
+        self.db.load_modbus_config()
+        return ServiceResult(
+            success=True,
+            message=f"기계 {machine_name} 삭제 완료"
+        )
+
+    def add_machine_tag(self, machine_name: str, tag_name: str, tag_config: TagConfig) -> ServiceResult:
+        # 태그 설정 검증
+        validated_config = validate_tag_config(tag_config)
+
+        # 태그 중복 검사
+        self._validate_tag_not_exists(machine_name, tag_name)
+
+        # 태그 추가 실행
+        self._add_tag_to_machine(machine_name, tag_name, validated_config)
+
+        self.db.load_modbus_config()
+        return ServiceResult(
+            success=True,
+            message=f"태그 {tag_name.upper()}가 {machine_name.upper()}에 추가되었습니다.",
+            data={
+                "machine_name": machine_name.upper(),
+                "tag_name": tag_name.upper(),
+                "config": validated_config
+            }
+        )
 
     def update_machine_tag(
         self, machine_name: str, tag_name: str, tag_config: TagConfig
     ):
         """태그 설정을 업데이트하는 메소드"""
-        try:
-            # 태그 설정 검증
-            validated_config = validate_tag_config(tag_config)
+        # 태그 설정 검증
+        validated_config = validate_tag_config(tag_config)
 
-            # 태그 존재 여부 확인
-            if not self._check_tag_exists(machine_name, tag_name):
-                raise HTTPException(
-                    status_code=404, detail=f"태그 '{tag_name}'를 찾을 수 없습니다."
-                )
+        # 태그 존재 여부 확인
+        self._validate_tag_exists(machine_name, tag_name)
 
-            # 태그 업데이트
-            self.db.execute_query(
-                """
-                UPDATE tags 
-                SET tag_type = ?, logical_register = ?, real_register = ?, 
-                    permission = ?
-                WHERE machine_name = ? AND tag_name = ?
-                """,
-                (
-                    validated_config.tag_type,
-                    validated_config.logical_register,
-                    validated_config.real_register,
-                    validated_config.permission,
-                    machine_name,
-                    tag_name,
-                ),
-            )
+        # 태그 업데이트
+        self.db.execute_query(
+            """
+            UPDATE tags 
+            SET tag_type = ?, logical_register = ?, real_register = ?, 
+                permission = ?
+            WHERE machine_name = ? AND tag_name = ?
+            """,
+            (
+                validated_config.tag_type,
+                validated_config.logical_register,
+                validated_config.real_register,
+                validated_config.permission,
+                machine_name.upper(),
+                tag_name.upper(),
+            ),
+        )
 
-            self.db.load_modbus_config()
-            return {"message": f"태그 {tag_name}가 업데이트되었습니다."}
+        self.db.load_modbus_config()
+        return ServiceResult(
+            success=True,
+            message=f"태그 {tag_name.upper()}가 업데이트되었습니다.",
+            data=validated_config
+        )
 
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"태그 업데이트 중 오류가 발생했습니다: {str(e)}",
-            )
 
     def delete_machine_tag(self, machine_name: str, tag_name: str):
         """태그를 삭제하는 메소드"""
+        tag_name = tag_name.upper()
 
         # 태그 존재 여부 확인
-        if not self._check_tag_exists(machine_name, tag_name):
-            raise HTTPException(
-                status_code=404, detail=f"태그 '{tag_name}'를 찾을 수 없습니다."
-            )
+        self._validate_tag_exists(machine_name, tag_name)
+
+        machine_id = self._get_machine_id(machine_name)
 
         # 태그 삭제
         self.db.execute_query(
             "DELETE FROM tags WHERE machine_id = ? AND tag_name = ?",
-            (machine_name, tag_name),
+            (machine_id, tag_name),
         )
 
         self.db.load_modbus_config()
@@ -273,7 +335,11 @@ class MachineService:
         )
 
         if not machine_result:
-            raise HTTPException(status_code=404, detail="기계를 찾을 수 없습니다.")
+            raise CustomException(
+                error_code=ErrorCode.MACHINE_NOT_FOUND,
+                status_code=404,
+                message=f"기계 '{machine_name}'를 찾을 수 없습니다."
+            )
 
         return machine_result[0]["id"]
 
@@ -300,16 +366,40 @@ class MachineService:
             ),
         )
 
-    def _check_tag_exists(self, machine_name: str, tag_name: str) -> bool:
-        """태그 존재 여부를 확인하는 내부 메소드
-
-        Returns:
-            bool: 태그가 존재하면 True, 존재하지 않으면 False
+    def _validate_tag_not_exists(self, machine_name: str, tag_name: str):
+        """태그 중복 검사를 수행하는 내부 메소드
+        
+        태그가 이미 존재하면 CustomException을 발생시킵니다.
         """
+        machine_name = machine_name.upper()
         tag_name = tag_name.upper()
         machine_id = self._get_machine_id(machine_name)
         tag_exists = self.db.execute_query(
             "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND tag_name = ?",
             (machine_id, tag_name),
         )
-        return tag_exists[0]["count"] > 0
+        if tag_exists[0]["count"] > 0:
+            raise CustomException(
+                error_code=ErrorCode.TAG_ALREADY_EXISTS,
+                status_code=409,
+                message=f"기계 '{machine_name}'의 태그 '{tag_name}'가 이미 존재합니다."
+            )
+
+    def _validate_tag_exists(self, machine_name: str, tag_name: str):
+        """태그 존재 여부를 확인하는 내부 메소드
+        
+        태그가 존재하지 않으면 CustomException을 발생시킵니다.
+        """
+        machine_name = machine_name.upper()
+        tag_name = tag_name.upper()
+        machine_id = self._get_machine_id(machine_name)
+        tag_exists = self.db.execute_query(
+            "SELECT COUNT(*) as count FROM tags WHERE machine_id = ? AND tag_name = ?",
+            (machine_id, tag_name),
+        )
+        if tag_exists[0]["count"] == 0:
+            raise CustomException(
+                error_code=ErrorCode.TAG_NOT_FOUND,
+                status_code=404,
+                message=f"기계 '{machine_name}'의 태그 '{tag_name}'를 찾을 수 없습니다."
+            )
