@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import Any, Optional, Dict
 
-
 class ServiceResult(BaseModel):
     """서비스 계층의 결과를 표현하는 모델"""
     success: bool
@@ -17,17 +16,19 @@ class ErrorResponse(BaseModel):
 
 
 # class MetaResponse(BaseModel):
-#     timestamp: datetime = datetime.now()
+#     timestamp: datetime = Field(default_factory=datetime.now)
 #     pagination: Optional[Dict[str, int]] = None
-
+#     class Config:
+#         json_encoders = {
+#             datetime: lambda v: v.isoformat()
+#         }
 
 class ApiResponse(BaseModel):
     success: bool
     message: str
     data: Optional[Any] = None
     error: Optional[ErrorResponse] = None
-    # meta: MetaResponse = MetaResponse()
-
+    # meta: MetaResponse = Field(default_factory=MetaResponse)
 
 class Mode(str, Enum):
     AUTO = "AUTO"

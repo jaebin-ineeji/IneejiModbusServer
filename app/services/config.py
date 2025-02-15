@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from typing import Dict
 from app.models.schemas import MachineConfigFormat, TagConfig, TagType, Permission
+from app.services.exceptions import CustomException, ErrorCode
 from app.services.modbus.client import DatabaseClientManager
 
 
@@ -104,7 +105,11 @@ class ConfigService:
             "SELECT id FROM machines WHERE name = ?", (machine_name,)
         )
         if not machine_result:
-            raise ValueError(f"기계 '{machine_name}'를 찾을 수 없습니다.")
+            raise CustomException(
+                error_code=ErrorCode.MACHINE_NOT_FOUND,
+                status_code=404,
+                message=f"기계 '{machine_name}'를 찾을 수 없습니다."
+            )
         return machine_result[0]["id"]
 
     def _add_tag(self, machine_name: str, tag_name: str, tag_config: TagConfig):
