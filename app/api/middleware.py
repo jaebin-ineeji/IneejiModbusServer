@@ -56,28 +56,3 @@ async def log_middleware(request: Request, call_next):
         headers=dict(response.headers),
         media_type=response.media_type,
     )
-
-
-# 에러 핸들러 추가
-async def global_exception_handler(request: Request, exc: Exception):
-    error_log = {
-        "path": request.url.path,
-        "method": request.method,
-        "error_type": type(exc).__name__,
-        "error_message": str(exc),
-    }
-    logger.error(f"Error: {json.dumps(error_log, ensure_ascii=False)}")
-
-    return JSONResponse(status_code=500, content={"message": "Internal server error"})
-
-
-async def validation_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=422,
-        content={
-            "success": False,
-            "message": "입력값 검증 오류",
-            "error_type": type(exc).__name__,
-            "error_message": str(exc),
-        },
-    )

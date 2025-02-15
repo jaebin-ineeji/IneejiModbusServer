@@ -1,23 +1,21 @@
 # main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
 
-from app.api.middleware import (
-    global_exception_handler,
-    log_middleware,
-    validation_exception_handler,
-)
+from app.api.middleware import log_middleware
 from app.api.routes.direct.analog import router as analog_router
 from app.api.routes.direct.digital import router as digital_router
 from app.api.routes.health import router as health_router
 from app.api.routes.machine import router as machine_router
 from app.api.routes.config import router as config_router
-
+from app.api.exceptions import (
+    http_exception_handler,
+    validation_exception_handler,
+    general_exception_handler,
+)
 
 from contextlib import asynccontextmanager
-
 from app.services.modbus.client import ModbusClientManager
 
 
@@ -42,21 +40,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 전역 예외 핸들러 등록
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    return await general_exception_handler(request, exc)
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return await http_exception_handler(request, exc)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return await validation_exception_handler(request, exc)
 
 # 미들웨어 추가
 app.middleware("http")(log_middleware)
-# 에러 핸들러 추가
-app.add_exception_handler(Exception, global_exception_handler)
-app.add_exception_handler(ValidationError, validation_exception_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
-
 
 # 라우터 포함
 app.include_router(health_router)
 app.include_router(machine_router)
+app.include_router(config_router)
 app.include_router(analog_router)
 app.include_router(digital_router)
-app.include_router(config_router)
+
 if __name__ == "__main__":
     import uvicorn
 
