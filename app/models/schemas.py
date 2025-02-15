@@ -49,6 +49,7 @@ class TagConfigFormat(BaseModel):
     real_register: str
     permission: str
 
+
 class MachineConfigFormat(BaseModel):
     ip: str
     port: int

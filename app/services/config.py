@@ -5,6 +5,7 @@ from typing import Dict
 from app.models.schemas import MachineConfigFormat, TagConfig, TagType, Permission
 from app.services.modbus.client import DatabaseClientManager
 
+
 class ConfigService:
     def __init__(self, db: DatabaseClientManager):
         self.db = db
@@ -15,9 +16,9 @@ class ConfigService:
             # 1. 기계 등록/업데이트
             self.db.execute_query(
                 """INSERT INTO machines (name, ip_address, port, slave) 
-                   VALUES (?, ?, ?, ?) 
-                   ON CONFLICT(name) DO UPDATE SET 
-                   ip_address = ?, port = ?, slave = ?""",
+                    VALUES (?, ?, ?, ?) 
+                    ON CONFLICT(name) DO UPDATE SET 
+                    ip_address = ?, port = ?, slave = ?""",
                 (
                     machine_name,
                     machine_config.ip,
@@ -64,7 +65,7 @@ class ConfigService:
                 FROM tags 
                 WHERE machine_id = (SELECT id FROM machines WHERE name = ?)
                 """,
-                (machine_name,)
+                (machine_name,),
             )
 
             tags_dict = {
@@ -72,38 +73,35 @@ class ConfigService:
                     "tag_type": tag["tag_type"],
                     "logical_register": tag["logical_register"],
                     "real_register": tag["real_register"],
-                    "permission": tag["permission"]
-                } for tag in tags
+                    "permission": tag["permission"],
+                }
+                for tag in tags
             }
 
             config[machine_name] = {
                 "ip": machine["ip_address"],
                 "port": machine["port"],
                 "slave": machine["slave"],
-                "tags": tags_dict
+                "tags": tags_dict,
             }
 
         # 설정 파일 저장
         config_dir = "logs/config"
         os.makedirs(config_dir, exist_ok=True)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"machine_config_{timestamp}.json"
         file_path = os.path.join(config_dir, filename)
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
+
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
 
-        return {
-            "config": config,
-            "saved_path": file_path
-        }
+        return {"config": config, "saved_path": file_path}
 
     def _get_machine_id(self, machine_name: str) -> int:
         """기계 ID 조회"""
         machine_result = self.db.execute_query(
-            "SELECT id FROM machines WHERE name = ?", 
-            (machine_name,)
+            "SELECT id FROM machines WHERE name = ?", (machine_name,)
         )
         if not machine_result:
             raise ValueError(f"기계 '{machine_name}'를 찾을 수 없습니다.")

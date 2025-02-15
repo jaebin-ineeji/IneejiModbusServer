@@ -7,6 +7,7 @@ from app.services.modbus.client import DatabaseClientManager
 
 router = APIRouter(prefix="/config", tags=["config"])
 
+
 @router.post("/import")
 async def import_config(
     config: Dict[str, MachineConfigFormat],
@@ -22,9 +23,9 @@ async def import_config(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"설정 일괄 등록 중 오류가 발생했습니다: {str(e)}"
+            status_code=500, detail=f"설정 일괄 등록 중 오류가 발생했습니다: {str(e)}"
         )
+
 
 @router.get("/export")
 async def export_config(
@@ -37,10 +38,9 @@ async def export_config(
         return ApiResponse(
             success=True,
             data=result,
-            message=f"설정이 성공적으로 추출되었으며 {result['saved_path']}에 저장되었습니다."
+            message=f"설정이 성공적으로 추출되었으며 {result['saved_path']}에 저장되었습니다.",
         )
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"설정 추출 중 오류가 발생했습니다: {str(e)}"
+            status_code=500, detail=f"설정 추출 중 오류가 발생했습니다: {str(e)}"
         )

@@ -28,9 +28,9 @@ class MachineService:
             return settings.MODBUS_MACHINES[machine_name]
         except KeyError:
             raise HTTPException(
-                status_code=404,
-                detail=f"기계 '{machine_name}'를 찾을 수 없습니다."
+                status_code=404, detail=f"기계 '{machine_name}'를 찾을 수 없습니다."
             )
+
     def get_machine_tags(self, machine_name: str) -> Dict[str, TagConfig]:
         """특정 기계의 모든 태그 반환"""
         try:
@@ -38,8 +38,7 @@ class MachineService:
             return settings.MODBUS_MACHINES[machine_name].tags
         except KeyError:
             raise HTTPException(
-                status_code=404,
-                detail=f"기계 '{machine_name}'를 찾을 수 없습니다."
+                status_code=404, detail=f"기계 '{machine_name}'를 찾을 수 없습니다."
             )
 
     def get_machine_tag_by_name(self, machine_name: str, tag_name: str) -> TagConfig:
@@ -50,8 +49,7 @@ class MachineService:
             return settings.MODBUS_MACHINES[machine_name].tags[tag_name]
         except KeyError:
             raise HTTPException(
-                status_code=404,
-                detail=f"태그 '{tag_name}'를 찾을 수 없습니다."
+                status_code=404, detail=f"태그 '{tag_name}'를 찾을 수 없습니다."
             )
 
     async def read_machine_tag_value(
@@ -87,7 +85,7 @@ class MachineService:
 
     async def write_machine_tag_value(
         self, machine_name: str, tag_name: str, tag_value: str
-    ) :
+    ):
         tag_config = self.get_machine_tag_by_name(machine_name, tag_name)
         if self.client_manager is not None:
             if tag_config.tag_type == TagType.ANALOG:
@@ -95,15 +93,17 @@ class MachineService:
                     result = await AnalogService(self.client_manager).write_value(
                         int(tag_config.real_register), int(tag_value)
                     )
-                    return {"message": f"태그 {tag_name}의 값이 {result}로 변경되었습니다."}
-                elif tag_config.permission == Permission.READ_WRITE and tag_value == "*":
+                    return {
+                        "message": f"태그 {tag_name}의 값이 {result}로 변경되었습니다."
+                    }
+                elif (
+                    tag_config.permission == Permission.READ_WRITE and tag_value == "*"
+                ):
                     raise HTTPException(
                         status_code=403, detail="태그 값을 입력해주세요."
                     )
                 else:
-                    raise HTTPException(
-                        status_code=403, detail="읽기 전용 태그입니다."
-                    )
+                    raise HTTPException(status_code=403, detail="읽기 전용 태그입니다.")
             elif tag_config.tag_type == TagType.DIGITAL_AM:
                 register, bit = tag_config.real_register.split(".")
                 tag_value = tag_value.upper()
@@ -114,27 +114,32 @@ class MachineService:
                         mode = True
                     else:
                         raise HTTPException(
-                            status_code=403, detail="모드 값을 확인해주세요. (AUTO, MANUAL)"
+                            status_code=403,
+                            detail="모드 값을 확인해주세요. (AUTO, MANUAL)",
                         )
                     result = await DigitalService(self.client_manager).write_bit(
-                        register = int(register), bit = int(bit), state = mode, type = 0
+                        register=int(register), bit=int(bit), state=mode, type=0
                     )
-                    return {"message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."}
-                elif tag_config.permission == Permission.READ_WRITE and tag_value == "*":
+                    return {
+                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
+                    }
+                elif (
+                    tag_config.permission == Permission.READ_WRITE and tag_value == "*"
+                ):
                     service = DigitalService(self.client_manager)
-                    response =await service.read_bit(
-                        register = int(register), bit = int(bit), type = 0
+                    response = await service.read_bit(
+                        register=int(register), bit=int(bit), type=0
                     )
                     # 모드를 토글 (반대로 변경)
                     mode = True if response == Mode.AUTO else False
                     result = await service.write_bit(
-                        register = int(register), bit = int(bit), state = mode, type = 0
+                        register=int(register), bit=int(bit), state=mode, type=0
                     )
-                    return {"message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."}
+                    return {
+                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
+                    }
                 else:
-                    raise HTTPException(
-                        status_code=403, detail="읽기 전용 태그입니다."
-                    )
+                    raise HTTPException(status_code=403, detail="읽기 전용 태그입니다.")
             elif tag_config.tag_type == TagType.DIGITAL_RM:
                 register, bit = tag_config.real_register.split(".")
                 tag_value = tag_value.upper()
@@ -145,23 +150,30 @@ class MachineService:
                         mode = True
                     else:
                         raise HTTPException(
-                            status_code=403, detail="모드 값을 확인해주세요. (LOCAL, REMOTE)"
+                            status_code=403,
+                            detail="모드 값을 확인해주세요. (LOCAL, REMOTE)",
                         )
                     result = await DigitalService(self.client_manager).write_bit(
-                        register = int(register), bit = int(bit), state = mode, type = 1
+                        register=int(register), bit=int(bit), state=mode, type=1
                     )
-                    return {"message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."}
-                elif tag_config.permission == Permission.READ_WRITE and tag_value == "*":
+                    return {
+                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
+                    }
+                elif (
+                    tag_config.permission == Permission.READ_WRITE and tag_value == "*"
+                ):
                     service = DigitalService(self.client_manager)
                     response = await service.read_bit(
-                        register = int(register), bit = int(bit), type = 1
+                        register=int(register), bit=int(bit), type=1
                     )
                     # 모드를 토글 (반대로 변경)
                     mode = True if response == Mode.LOCAL else False
                     result = await service.write_bit(
-                        register = int(register), bit = int(bit), state = mode, type = 1
+                        register=int(register), bit=int(bit), state=mode, type=1
                     )
-                    return {"message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."}
+                    return {
+                        "message": f"태그 {tag_name}의 모드가 {result}로 변경되었습니다."
+                    }
                 else:
                     raise HTTPException(status_code=403, detail="읽기 전용 태그입니다.")
         else:
@@ -287,9 +299,10 @@ class MachineService:
                 tag_config.permission,
             ),
         )
+
     def _check_tag_exists(self, machine_name: str, tag_name: str) -> bool:
         """태그 존재 여부를 확인하는 내부 메소드
-        
+
         Returns:
             bool: 태그가 존재하면 True, 존재하지 않으면 False
         """

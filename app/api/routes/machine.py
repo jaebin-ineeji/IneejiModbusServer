@@ -125,6 +125,7 @@ async def get_tag_value(
         "value": result,
     }
 
+
 @router.post("/{machine_name}/tags/{tag_name}")
 async def set_tag_value(
     machine_name: str,
@@ -135,10 +136,16 @@ async def set_tag_value(
 ):
     machine_service.client_manager = client
     try:
-        result = await machine_service.write_machine_tag_value(machine_name, tag_name, tag_value)
+        result = await machine_service.write_machine_tag_value(
+            machine_name, tag_name, tag_value
+        )
         return ApiResponse(
             success=True,
-            message=result.get("message", str(result)) if isinstance(result, dict) else str(result),
+            message=(
+                result.get("message", str(result))
+                if isinstance(result, dict)
+                else str(result)
+            ),
         )
     except Exception as e:
         return ApiResponse(
