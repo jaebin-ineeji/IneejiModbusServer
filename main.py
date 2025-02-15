@@ -18,12 +18,15 @@ from app.api.routes.config import router as config_router
 
 from contextlib import asynccontextmanager
 
+from app.services.modbus.client import ModbusClientManager
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 시작할 때 실행할 코드
     print("서버가 시작됩니다...")
     yield
+    ModbusClientManager.close_all()
     # 종료할 때 실행할 코드
     print("서버가 종료됩니다...")
 

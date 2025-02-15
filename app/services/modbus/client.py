@@ -12,53 +12,83 @@ from app.services.exceptions import ModbusConnectionError
 
 logger = setup_logger(__name__)
 
+
 class ModbusClientManager:
+    _instances: Dict[str, "ModbusClientManager"] = {}
+    _clients: Dict[str, ModbusTcpClient] = {}
+
+    def __new__(cls, host: str, port: int = 502, slave: int = 1):
+        # IP 주소별로 단일 인스턴스 유지
+        key = f"{host}:{port}"
+        if key not in cls._instances:
+            logger.debug(f"ModbusClientManager 인스턴스 생성: {key}")
+            cls._instances[key] = super().__new__(cls)
+            cls._instances[key]._initialized = False
+
+        return cls._instances[key]
+
     def __init__(self, host: str, port: int = 502, slave: int = 1):
-        self.host = host
-        self.port = port
-        self.slave = slave
+        if not hasattr(self, "_initialized") or not self._initialized:
+            self.host = host
+            self.port = port
+            self.slave = slave
+            self._key = f"{host}:{port}"
+            self._client: Optional[ModbusTcpClient] = None
+            self._initialized = True
 
-    def _create_connection(self):
-        """새로운 Modbus 연결 생성"""
-        try:
-            client = ModbusTcpClient(
-                host=self.host, 
-                port=self.port, 
-                timeout=3, 
-                retries=3
-            )
-            if not client.connect():
-                raise ModbusConnectionError(
-                    f"Modbus 서버 연결 실패 - host: {self.host}, port: {self.port}"
+    def _ensure_connection(self):
+        """연결이 없거나 끊어진 경우 새로운 연결 생성"""
+        if self._client is None or not self._client.connected:
+            try:
+                self._client = ModbusTcpClient(
+                    host=self.host, port=self.port, timeout=3, retries=3
                 )
-            logger.debug(f"Modbus 연결 성공: {self.host}:{self.port}")
-            return client
-        except Exception as e:
-            logger.error(f"Modbus 연결 오류: {self.host}:{self.port} - {str(e)}")
-            raise
-
-    @contextmanager
-    def connect(self) -> Iterator[ModbusTcpClient]:
-        """컨텍스트 매니저로 연결 제공"""
-        client = None
-        try:
-            client = self._create_connection()
-            yield client
-        except Exception as e:
-            logger.error(f"Modbus 통신 오류: {self.host}:{self.port} - {str(e)}")
-            raise
-        finally:
-            if client:
-                client.close()
-                logger.debug(f"Modbus 연결 종료: {self.host}:{self.port}")
+                if not self._client.connect():
+                    self._client = None
+                    raise ModbusConnectionError(
+                        f"Modbus 서버 연결 실패 - host: {self.host}, port: {self.port}"
+                    )
+                # 연결 성공 시 _clients에 저장
+                self._clients[self._key] = self._client
+                logger.info(f"Modbus 연결 성공: {self._key}")
+            except Exception as e:
+                logger.error(f"Modbus 연결 오류: {self._key} - {str(e)}")
+                raise
 
     async def test_connection(self):
-        """연결 테스트"""
         try:
             with self.connect():
                 return True
         except Exception:
             return False
+
+    @contextmanager
+    def connect(self) -> Iterator[ModbusTcpClient]:
+        """컨텍스트 매니저로 연결 제공"""
+        self._ensure_connection()
+        if self._client is None:  # 타입 체크를 위한 추가 검사
+            raise ConnectionError("Modbus 클라이언트가 초기화되지 않았습니다")
+        try:
+            yield self._client
+        except Exception as e:
+            logger.error(f"Modbus 통신 오류: {self._key} - {str(e)}")
+            # 연결에 문제가 있다면 다음 시도에서 재연결하도록 None으로 설정
+            self._client = None
+            raise
+
+    @classmethod
+    def close_all(cls):
+        """모든 연결 종료 (필요한 경우에만 사용)"""
+        close_list = []
+        for key, client in cls._clients.items():
+            try:
+                if client.connected:
+                    client.close()
+                    close_list.append(key)
+            except Exception as e:
+                logger.error(f"Modbus 연결 종료 오류: {key} - {str(e)}")
+        logger.info(f"Modbus 연결 종료: {close_list}")
+        cls._clients.clear()
 
 
 class DatabaseClientManager:
