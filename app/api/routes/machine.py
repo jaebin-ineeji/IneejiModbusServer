@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse
 from app.api.dependencies import get_database_client, get_modbus_client_by_machine_name
 from app.models.schemas import ApiResponse, MachineConfig, TagConfig, ErrorResponse
+from app.models.swagger_docs import MACHINE_LIST_RESPONSE, MACHINE_ADD_RESPONSE
 from app.services.modbus.client import DatabaseClientManager, ModbusClientManager
 from functools import lru_cache
 
@@ -15,7 +16,12 @@ def get_machine_service(db: DatabaseClientManager = Depends(get_database_client)
     return MachineService(db)
 
 
-@router.get("", status_code=status.HTTP_200_OK)
+@router.get("", status_code=status.HTTP_200_OK, 
+    summary="기계 목록 조회",
+    description="현재 등록된 모든 기계의 목록과 각 기계의 태그 설정을 반환합니다.",
+    response_description="기계 목록 및 태그 설정",
+    responses={200: MACHINE_LIST_RESPONSE}
+)
 async def get_machines_config(
     machine_service: MachineService = Depends(get_machine_service),
 ):
@@ -29,7 +35,12 @@ async def get_machines_config(
     
 
 
-@router.post("/{machine_name}", status_code=status.HTTP_201_CREATED)
+@router.post("/{machine_name}", status_code=status.HTTP_201_CREATED,
+    summary="새로운 기계 추가",
+    description="새로운 기계를 추가하고 설정을 갱신합니다.",
+    response_description="기계 추가 결과",
+    responses={201: MACHINE_ADD_RESPONSE[201], 409: MACHINE_ADD_RESPONSE[409]}
+)
 async def add_machine(
     machine_name: str,
     config: MachineConfig,

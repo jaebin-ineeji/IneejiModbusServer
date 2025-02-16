@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Any, Optional, Dict
 
@@ -57,7 +57,7 @@ class TagConfig(BaseModel):
 
 
 class MachineConfig(BaseModel):
-    ip: str
+    ip: str = Field(..., description="기계의 IP 주소", examples=["172.30.1.97"])
     port: int = 502
     slave: int = 1
     tags: Dict[str, TagConfig] = {}

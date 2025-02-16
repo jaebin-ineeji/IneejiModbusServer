@@ -224,6 +224,7 @@ class MachineService:
     def add_machine(self, machine_name: str, machine_config: MachineConfig) -> ServiceResult:
         try:
             machine_name = machine_name.upper()
+            self._validate_machine_exists(machine_name)
             self.db.execute_query(
                 "INSERT INTO machines (name, ip_address, port, slave) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET ip_address = ?, port = ?, slave = ?",
                 (machine_name, machine_config.ip, machine_config.port, machine_config.slave, machine_config.ip, machine_config.port, machine_config.slave),
@@ -231,8 +232,11 @@ class MachineService:
             self.db.load_modbus_config()
             return ServiceResult(
                 success=True,
-                message=f"기계 {machine_name} 추가/수정 완료",
-                data=machine_config
+                message=f"기계 {machine_name} 추가 완료",
+                data={
+                    "machine_name": machine_name,
+                    "config": machine_config
+                }
             )
         except Exception as e:
             raise CustomException(
@@ -402,4 +406,20 @@ class MachineService:
                 error_code=ErrorCode.TAG_NOT_FOUND,
                 status_code=404,
                 message=f"기계 '{machine_name}'의 태그 '{tag_name}'를 찾을 수 없습니다."
+            )
+    def _validate_machine_exists(self, machine_name: str):
+        """기계 존재 여부를 확인하는 내부 메소드
+
+        기계가 존재하면 CustomException을 발생시킵니다.
+        """
+        machine_name = machine_name.upper()
+        machine_exists = self.db.execute_query(
+            "SELECT COUNT(*) as count FROM machines WHERE name = ?",
+            (machine_name,)
+        )
+        if machine_exists[0]["count"] > 0:
+            raise CustomException(
+                error_code=ErrorCode.MACHINE_ALREADY_EXISTS,
+                status_code=409,
+                message=f"기계 '{machine_name}'가 이미 존재합니다."
             )
