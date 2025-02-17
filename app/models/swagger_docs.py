@@ -62,3 +62,35 @@ MACHINE_ADD_RESPONSE = {
         }
 }
 }
+
+MACHINE_CONFIG_RESPONSE = {
+    "description": "기계 설정 조회 성공",
+    "content": {
+        "application/json": {
+            "example": {
+                "success": True,
+                "message": "기계 설정 조회 성공",
+                "data": {
+                    "machine_name": "MACHINE1",
+                    "ip": "172.30.1.97",
+                    "port": 502,
+                    "slave": 1,
+                    "tags": {
+                        "TAG1": {
+                            "tag_type": "Analog",
+                            "logical_register": "40001",
+                            "real_register": "2000",
+                            "permission": "Read"
+                        },
+                        "TAG2": {
+                            "tag_type": "Digital",
+                            "logical_register": "40002",
+                            "real_register": "2001",
+                            "permission": "Read"
+                        }
+                    }
+                }
+            }
+        }   
+    }
+}

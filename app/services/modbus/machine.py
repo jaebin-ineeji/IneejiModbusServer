@@ -26,7 +26,22 @@ class MachineService:
         return ServiceResult(
                 success=True,
                 message="기계 목록 조회 성공",
-                data=settings.MODBUS_MACHINES
+                data=list(settings.MODBUS_MACHINES.keys())
+            )
+
+    def get_machine_config_response(self, machine_name: str) -> ServiceResult:
+        """기계 설정을 반환하는 메소드"""
+        try:
+            machine_name = machine_name.upper()
+            return ServiceResult(
+                success=True,
+                message="기계 설정 조회 성공",
+                data=settings.MODBUS_MACHINES[machine_name]
+            )
+        except KeyError:
+            raise CustomException(
+                error_code=ErrorCode.MACHINE_NOT_FOUND,
+                message=f"기계 '{machine_name}'를 찾을 수 없습니다."
             )
 
     def get_machine_config(self, machine_name: str) -> MachineConfig:
@@ -288,20 +303,21 @@ class MachineService:
         # 태그 존재 여부 확인
         self._validate_tag_exists(machine_name, tag_name)
 
+        machine_id = self._get_machine_id(machine_name)
         # 태그 업데이트
         self.db.execute_query(
             """
             UPDATE tags 
             SET tag_type = ?, logical_register = ?, real_register = ?, 
                 permission = ?
-            WHERE machine_name = ? AND tag_name = ?
+            WHERE machine_id = ? AND tag_name = ?
             """,
             (
                 validated_config.tag_type,
                 validated_config.logical_register,
                 validated_config.real_register,
                 validated_config.permission,
-                machine_name.upper(),
+                machine_id,
                 tag_name.upper(),
             ),
         )

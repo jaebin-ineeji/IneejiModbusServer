@@ -1,12 +1,20 @@
+import asyncio
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse
 from app.api.dependencies import get_database_client, get_modbus_client_by_machine_name
 from app.models.schemas import ApiResponse, MachineConfig, TagConfig, ErrorResponse
-from app.models.swagger_docs import MACHINE_LIST_RESPONSE, MACHINE_ADD_RESPONSE
+from app.models.swagger_docs import MACHINE_LIST_RESPONSE, MACHINE_ADD_RESPONSE, MACHINE_CONFIG_RESPONSE
 from app.services.modbus.client import DatabaseClientManager, ModbusClientManager
 from functools import lru_cache
 
 from app.services.modbus.machine import MachineService
+from fastapi import WebSocket, WebSocketDisconnect
+
+from app.core.logging_config import setup_logger
+from app.services.modbus.websocket_service import WebSocketService
+
+
+logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/machine", tags=["machine"])
 
@@ -33,6 +41,24 @@ async def get_machines_config(
             data=result.data
         ).model_dump(exclude_none=True)
     
+
+@router.get("/{machine_name}", status_code=status.HTTP_200_OK,
+    summary="기계 설정 조회",
+    description="특정 기계의 설정을 반환합니다.",
+    response_description="기계 설정",
+    responses={200: MACHINE_CONFIG_RESPONSE}
+)
+async def get_machine_config(
+    machine_name: str,
+    machine_service: MachineService = Depends(get_machine_service),
+):
+    """특정 기계의 설정을 반환"""
+    result = machine_service.get_machine_config_response(machine_name)
+    return ApiResponse(
+        success=result.success,
+        message=result.message,
+        data=result.data
+    ).model_dump(exclude_none=True)
 
 
 @router.post("/{machine_name}", status_code=status.HTTP_201_CREATED,
@@ -173,6 +199,44 @@ async def get_tag_value(
             ).model_dump()
         )
 
+@router.get("/{machine_name}/values", status_code=status.HTTP_200_OK,
+    summary="선택한 태그 값 조회",
+    description="클라이언트가 요청한 태그 이름 목록에 해당하는 태그 값을 반환합니다.")
+async def get_selected_tag_values(
+    machine_name: str,
+    tag_names: str = Query(..., description="조회할 태그들의 이름 리스트, 예: TAG1, TAG2"),
+    machine_service: MachineService = Depends(get_machine_service),
+    client: ModbusClientManager = Depends(get_modbus_client_by_machine_name),
+):
+    try:
+        machine_service.client_manager = client
+        tag_list = [tag.strip() for tag in tag_names.split(',')]
+        tasks = [machine_service.read_machine_tag_value(machine_name, tag.upper()) for tag in tag_list]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        data = {}
+        for tag, result in zip(tag_list, results):
+            # 예외가 발생한 경우 에러 메시지를 기록합니다.
+            if isinstance(result, Exception):
+                data[tag.upper()] = f"오류 발생: {str(result)}"
+            else:
+                data[tag.upper()] = result
+        return ApiResponse(
+            success=True,
+            message=f"{machine_name.upper()} 기계의 선택한 태그 값 조회 성공",
+            data=data
+        ).model_dump(exclude_none=True)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content=ApiResponse(
+                success=False,
+                message="태그 값 조회 실패",
+                error=ErrorResponse(
+                    code="TAG_READ_ERROR",
+                    message=str(e)
+                )
+            ).model_dump()
+        )
 
 @router.post("/{machine_name}/tags/{tag_name}", status_code=status.HTTP_200_OK)
 async def set_tag_value(
@@ -192,3 +256,39 @@ async def set_tag_value(
             message=result.message,
             data=result.data
         ).model_dump(exclude_none=True)
+
+@router.websocket("/{machine_name}/ws")
+async def websocket_tag_values(
+    websocket: WebSocket,
+    machine_name: str,
+    machine_service: MachineService = Depends(get_machine_service),
+    client: ModbusClientManager = Depends(get_modbus_client_by_machine_name),
+):
+    await websocket.accept()
+    websocket_service = WebSocketService(machine_service)
+    
+    try:
+        await websocket_service.handle_single_machine_monitoring(
+            websocket,
+            machine_name,
+            client
+        )
+    except WebSocketDisconnect:
+        logger.info(f"클라이언트 연결이 종료되었습니다: {machine_name}")
+    except Exception as e:
+        logger.error(f"웹소켓 에러 발생: {str(e)}")
+
+@router.websocket("/ws")
+async def websocket_multiple_machines_values(
+    websocket: WebSocket,
+    machine_service: MachineService = Depends(get_machine_service),
+):
+    await websocket.accept()
+    websocket_service = WebSocketService(machine_service)
+    
+    try:
+        await websocket_service.handle_multiple_machines_monitoring(websocket)
+    except WebSocketDisconnect:
+        logger.info("웹소켓 연결이 종료되었습니다")
+    except Exception as e:
+        logger.error(f"웹소켓 에러 발생: {str(e)}")
