@@ -40,3 +40,66 @@ source .venv/bin/activate
 ```bash
 pip install --no-index --find-links=packages -r requirements.txt
 ```
+
+
+## 프로젝트 구조
+```
+project/
+├── app/
+│   ├── __init__.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes/
+│   │   │   ├── __init__.py
+│   │   │   ├── analog.py
+│   │   │   ├── digital.py
+│   │   │   └── health.py
+│   │   └── dependencies.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   └── logging_config.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── schemas.py
+│   └── services/
+│       ├── __init__.py
+│       ├── modbus/
+│       │   ├── __init__.py
+│       │   ├── client.py
+│       │   ├── analog.py
+│       │   └── digital.py
+│       └── exceptions.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_analog.py
+│   └── test_digital.py
+├── .env
+├── .gitignore
+├── requirements.txt
+└── README.md
+```
+
+```sql
+-- machines 테이블 생성
+CREATE TABLE machines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    ip_address TEXT NOT NULL,
+    port INTEGER NOT NULL,
+    slave INTEGER NOT NULL
+)
+
+-- tags 테이블 생성
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id INTEGER NOT NULL,
+    tag_name TEXT NOT NULL,
+    tag_type TEXT NOT NULL,
+    logical_register TEXT NOT NULL,
+    real_register TEXT NOT NULL,
+    permission TEXT NOT NULL,
+    FOREIGN KEY (machine_id) REFERENCES machines(id) ON DELETE CASCADE
+)
+
+```

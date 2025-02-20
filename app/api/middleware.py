@@ -1,11 +1,13 @@
-from fastapi import Request, Response
-import time
+# app/api/middleware.py
 import json
+import time
 
+from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-from logging_config import setup_logger
 
-logger = setup_logger()
+from app.core.logging_config import setup_logger
+
+logger = setup_logger(__name__)
 
 
 async def log_middleware(request: Request, call_next):
@@ -54,16 +56,3 @@ async def log_middleware(request: Request, call_next):
         headers=dict(response.headers),
         media_type=response.media_type,
     )
-
-
-# 에러 핸들러 추가
-async def global_exception_handler(request: Request, exc: Exception):
-    error_log = {
-        "path": request.url.path,
-        "method": request.method,
-        "error_type": type(exc).__name__,
-        "error_message": str(exc),
-    }
-    logger.error(f"Error: {json.dumps(error_log, ensure_ascii=False)}")
-
-    return JSONResponse(status_code=500, content={"message": "Internal server error"})
