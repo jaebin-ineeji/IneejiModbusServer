@@ -2,9 +2,12 @@ name: Build FastAPI Executable
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
   workflow_dispatch:
+
+env: # 워크플로 전체에서 UTF-8 인코딩 설정
+  PYTHONIOENCODING: utf-8
 
 jobs:
   build:
@@ -21,6 +24,13 @@ jobs:
       with:
         python-version: "3.10"
         
+    - name: Create .env file
+      run: |
+        echo "MODBUS_DEFAULT_PORT=502" >> .env
+        echo "MODBUS_TIMEOUT=3" >> .env
+        echo "MODBUS_RETRY_COUNT=3" >> .env
+        echo "MODBUS_SLAVE=1" >> .env
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -34,3 +44,21 @@ jobs:
       with:
         name: ineeji_modbus_server-${{ runner.os }}
         path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Add to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          artifacts/ineeji_modbus_server-Linux/*
+          artifacts/ineeji_modbus_server-Windows/*
+        token: ${{ secrets.GH_TOKEN }}

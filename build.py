@@ -26,7 +26,7 @@ def get_hidden_imports():
         'app.services.modbus.websocket_service',
         'app.services.config',
         'app.services.exceptions',
-        
+
         # 프로젝트 코어
         'app.core.config',
         'app.core.logging_config',
@@ -40,13 +40,26 @@ def get_hidden_imports():
         'pydantic',
         'pydantic_settings',
         'python-dotenv'
+
+        # uvicorn 관련 추가
+        'uvicorn',
+        'uvicorn.config',
+        'uvicorn.main',
+        'uvicorn.loops',
+        'uvicorn.loops.auto',
+        'uvicorn.protocols',
+        'uvicorn.protocols.http',
+        'uvicorn.protocols.websockets',
+        'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan',
     ]
 
 def get_data_files():
     separator = ';' if sys.platform == "win32" else ':'
     return [
+        f"requirements.txt{separator}.",
         f'.env{separator}.',
-        f'logs{separator}logs',
+        f'main.py{separator}.',
         f'app{separator}app'
     ]
 
@@ -57,7 +70,8 @@ def build_executable():
         '--onefile',
         '--console',
         '--noconfirm',
-        '--clean'
+        '--clean',
+        '--collect-all', 'uvicorn'
     ]
     
     for import_name in get_hidden_imports():
