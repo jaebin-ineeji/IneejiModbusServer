@@ -35,6 +35,8 @@ class Mode(str, Enum):
     MANUAL = "MANUAL"
     LOCAL = "LOCAL"
     REMOTE = "REMOTE"
+    ON = "ON"
+    OFF = "OFF"
 
 
 class TagType(str, Enum):

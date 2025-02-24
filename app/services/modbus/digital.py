@@ -50,5 +50,7 @@ def _get_digital_status_message(
 ) -> Mode:
     if type == 0:
         return Mode.AUTO if (result >> bit_position & 1) == 0 else Mode.MANUAL
-    else:
+    elif type == 1:
         return Mode.LOCAL if (result >> bit_position & 1) == 0 else Mode.REMOTE
+    else:
+        return Mode.ON if (result >> bit_position & 1) == 0 else Mode.OFF

@@ -14,13 +14,6 @@ class MachineService:
         self.client_manager: Optional[ModbusClientManager] = None
         self.db = db
 
-    # def get_all_machine_names(self) -> list[str]:
-    #     """모든 기계 이름을 반환하는 메소드"""
-    #     return list(settings.MODBUS_MACHINES.keys())
-    # def get_all_machine_configs(self) -> list[MachineConfig]:
-    #     """모든 기계 설정을 반환하는 메소드"""
-    #     return list(settings.MODBUS_MACHINES.values())
-
     def get_all_machines(self) -> ServiceResult:
         """모든 기계 설정을 반환하는 메소드"""
         return ServiceResult(
@@ -98,6 +91,10 @@ class MachineService:
                 elif tag_config.tag_type == TagType.DIGITAL_RM:
                     result = await DigitalService(self.client_manager).read_bit(
                         int(register), int(bit), 1
+                    )
+                elif tag_config.tag_type == TagType.DIGITAL:
+                    result = await DigitalService(self.client_manager).read_bit(
+                        int(register), int(bit), 2
                     )
                 return result
             else:
