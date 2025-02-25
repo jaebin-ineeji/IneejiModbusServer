@@ -10,7 +10,7 @@ class DigitalService:
     def __init__(self, client_manager: ModbusClientManager):
         self.client_manager = client_manager
 
-    async def read_bit(self, register: int, bit: int, type: int = 1) -> str:
+    async def read_bit(self, register: int, bit: int, type: int = 1) -> Mode:
         with self.client_manager.connect() as client:
             result = client.read_holding_registers(
                 register, count=1, slave=self.client_manager.slave
@@ -24,7 +24,7 @@ class DigitalService:
 
     async def write_bit(
         self, register: int, bit: int, state: bool, type: int = 1
-    ) -> str:
+    ) -> Mode:
         with self.client_manager.connect() as client:
             response = client.read_holding_registers(
                 register, count=1, slave=self.client_manager.slave
@@ -53,4 +53,4 @@ def _get_digital_status_message(
     elif type == 1:
         return Mode.LOCAL if (result >> bit_position & 1) == 0 else Mode.REMOTE
     else:
-        return Mode.ON if (result >> bit_position & 1) == 0 else Mode.OFF
+        return Mode.OFF if (result >> bit_position & 1) == 0 else Mode.ON
