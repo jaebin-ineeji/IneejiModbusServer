@@ -8,17 +8,14 @@ from app.services.exceptions import CustomException
 
 async def http_exception_handler(request: Request, exc: HTTPException):
     """HTTP 예외 처리 핸들러"""
-    error_code = getattr(exc, 'error_code', f"HTTP_{exc.status_code}_ERROR")
+    error_code = getattr(exc, "error_code", f"HTTP_{exc.status_code}_ERROR")
     return JSONResponse(
         status_code=exc.status_code,
         content=ApiResponse(
             success=False,
             message=exc.detail,
-            error=ErrorResponse(
-                code=error_code,
-                message=exc.detail
-            )
-        ).model_dump()
+            error=ErrorResponse(code=error_code, message=exc.detail),
+        ).model_dump(),
     )
 
 
@@ -32,9 +29,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             error=ErrorResponse(
                 code="VALIDATION_ERROR",
                 message=str(exc),
-                details={"errors": exc.errors()}
-            )
-        ).model_dump()
+                details={"errors": exc.errors()},
+            ),
+        ).model_dump(),
     )
 
 
@@ -45,12 +42,10 @@ async def general_exception_handler(request: Request, exc: Exception):
         content=ApiResponse(
             success=False,
             message="서버 내부 오류",
-            error=ErrorResponse(
-                code="INTERNAL_SERVER_ERROR",
-                message=str(exc)
-            )
-        ).model_dump()
-    ) 
+            error=ErrorResponse(code="INTERNAL_SERVER_ERROR", message=str(exc)),
+        ).model_dump(),
+    )
+
 
 async def custom_exception_handler(request: Request, exc: CustomException):
     return JSONResponse(
@@ -59,9 +54,7 @@ async def custom_exception_handler(request: Request, exc: CustomException):
             success=False,
             message=exc.message,
             error=ErrorResponse(
-                code=exc.error_code.value,
-                message=exc.message,
-                details=exc.details
-            )
-        ).model_dump()
+                code=exc.error_code.value, message=exc.message, details=exc.details
+            ),
+        ).model_dump(),
     )

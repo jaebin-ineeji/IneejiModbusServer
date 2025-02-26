@@ -108,7 +108,7 @@ class ConfigService:
             raise CustomException(
                 error_code=ErrorCode.MACHINE_NOT_FOUND,
                 status_code=404,
-                message=f"기계 '{machine_name}'를 찾을 수 없습니다."
+                message=f"기계 '{machine_name}'를 찾을 수 없습니다.",
             )
         return machine_result[0]["id"]
 

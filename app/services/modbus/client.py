@@ -129,7 +129,7 @@ class DatabaseClientManager:
                 raise CustomException(
                     error_code=ErrorCode.DATABASE_ERROR,
                     status_code=500,
-                    message=f"데이터베이스 연결 실패: {e}"
+                    message=f"데이터베이스 연결 실패: {e}",
                 )
 
         try:
@@ -141,7 +141,7 @@ class DatabaseClientManager:
             raise CustomException(
                 error_code=ErrorCode.DATABASE_ERROR,
                 status_code=500,
-                message=f"데이터베이스 작업 실패: {e}"
+                message=f"데이터베이스 작업 실패: {e}",
             )
         finally:
             if self._connection:
@@ -193,7 +193,7 @@ class DatabaseClientManager:
                 raise CustomException(
                     error_code=ErrorCode.DATABASE_ERROR,
                     status_code=500,
-                    message=f"데이터베이스 생성 중 오류 발생: {e}"
+                    message=f"데이터베이스 생성 중 오류 발생: {e}",
                 )
         else:
             logger.info(
@@ -223,7 +223,7 @@ class DatabaseClientManager:
                 raise CustomException(
                     error_code=ErrorCode.DATABASE_ERROR,
                     status_code=500,
-                    message=f"쿼리 실행 실패: {e}\n쿼리: {query}\n파라미터: {params}"
+                    message=f"쿼리 실행 실패: {e}\n쿼리: {query}\n파라미터: {params}",
                 )
 
     def execute_many(self, query: str, params_list: list[tuple]) -> None:
@@ -245,7 +245,7 @@ class DatabaseClientManager:
                 raise CustomException(
                     error_code=ErrorCode.DATABASE_ERROR,
                     status_code=500,
-                    message=f"대량 쿼리 실행 실패: {e}\n쿼리: {query}"
+                    message=f"대량 쿼리 실행 실패: {e}\n쿼리: {query}",
                 )
 
     def load_modbus_config(self) -> Dict[str, MachineConfig]:

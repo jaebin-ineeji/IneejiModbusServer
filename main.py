@@ -42,22 +42,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # 전역 예외 핸들러 등록
 @app.exception_handler(Exception)
 async def app_general_exception_handler(request: Request, exc: Exception):
     return await general_exception_handler(request, exc)
 
+
 @app.exception_handler(HTTPException)
 async def app_http_exception_handler(request: Request, exc: HTTPException):
     return await http_exception_handler(request, exc)
 
+
 @app.exception_handler(RequestValidationError)
-async def app_validation_exception_handler(request: Request, exc: RequestValidationError):
+async def app_validation_exception_handler(
+    request: Request, exc: RequestValidationError
+):
     return await validation_exception_handler(request, exc)
+
 
 @app.exception_handler(CustomException)
 async def app_custom_exception_handler(request: Request, exc: CustomException):
     return await custom_exception_handler(request, exc)
+
 
 # 미들웨어 추가
 app.middleware("http")(log_middleware)
