@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 
 class ServiceResult(BaseModel):
@@ -82,3 +82,37 @@ class MachineConfigFormat(BaseModel):
     port: int = 502
     slave: int = 1
     tags: Dict[str, TagConfigFormat] = {}
+
+# 자동 제어를 위한 태그 설정
+class AutoControlTagConfig(BaseModel):
+    tag_name: str
+    target_value: str = Field(..., description="제어 목표 값")
+
+# 자동 제어 설정
+class AutoControlConfig(BaseModel):
+    enabled: bool = Field(default=False, description="자동 제어 활성화 여부")
+    machine_name: str = Field(..., description="제어할 기계 이름") 
+    tags: List[AutoControlTagConfig] = Field(default=[], description="제어할 태그 목록")
+
+# 자동 제어 상태
+class AutoControlStatus(BaseModel):
+    enabled: bool
+    machine_name: str
+    tags: List[AutoControlTagConfig]
+    last_executed: Optional[str] = None
+
+# 기계별 자동 제어 설정
+class MachineAutoControlConfig(BaseModel):
+    machine_name: str = Field(..., description="제어할 기계 이름")
+    tags: List[AutoControlTagConfig] = Field(default=[], description="제어할 태그 목록")
+
+# 전역 자동 제어 설정
+class GlobalAutoControlConfig(BaseModel):
+    enabled: bool = Field(default=False, description="자동 제어 모드 활성화 여부")
+    machines: List[MachineAutoControlConfig] = Field(default=[], description="제어할 기계 목록")
+
+# 전역 자동 제어 상태
+class GlobalAutoControlStatus(BaseModel):
+    enabled: bool
+    machines: List[MachineAutoControlConfig]
+    last_executed: Optional[str] = None

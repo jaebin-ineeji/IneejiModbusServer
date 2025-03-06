@@ -9,6 +9,7 @@ from app.api.routes.direct.digital import router as digital_router
 from app.api.routes.health import router as health_router
 from app.api.routes.machine import router as machine_router
 from app.api.routes.config import router as config_router
+from app.api.routes.autocontrol import router as autocontrol_router
 from app.api.exceptions import (
     http_exception_handler,
     validation_exception_handler,
@@ -75,6 +76,7 @@ app.include_router(machine_router)
 app.include_router(config_router)
 app.include_router(analog_router)
 app.include_router(digital_router)
+app.include_router(autocontrol_router)
 
 if __name__ == "__main__":
     import uvicorn
