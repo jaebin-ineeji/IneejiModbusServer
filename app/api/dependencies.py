@@ -1,8 +1,9 @@
 # app/api/dependencies.py
-from fastapi import Query
+from fastapi import Query, Depends
 from app.services.modbus.client import ModbusClientManager, DatabaseClientManager
 from app.core.config import settings
 from app.services.modbus.machine import MachineService
+from app.services.modbus.dao.auto_controll_dao import AutoControllDAO
 
 # 데이터베이스 인스턴스 생성
 db = DatabaseClientManager(settings.DATABASE_NAME)
@@ -11,6 +12,8 @@ db = DatabaseClientManager(settings.DATABASE_NAME)
 def get_database_client():
     return db
 
+def get_auto_controll_dao(db_client = Depends(get_database_client)):
+    return AutoControllDAO(db_client)
 
 async def get_modbus_client_by_ip(
     host: str = Query(

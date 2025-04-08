@@ -1,8 +1,11 @@
-import datetime
+from datetime import datetime
 import os
 from typing import Dict, Optional
 import pandas as pd
+from zoneinfo import ZoneInfo
 from app.models.schemas import GlobalAutoControlConfig, GlobalAutoControlStatus, ServiceResult
+from app.services.modbus.client import DatabaseClientManager
+from app.services.modbus.dao.auto_controll_dao import AutoControllDAO
 from app.services.modbus.machine import MachineService
 from app.core.logging_config import setup_logger
 from app.api.dependencies import get_modbus_client_by_machine_name
@@ -22,18 +25,20 @@ class AutoControlService:
     # 전역 자동 제어 상태 (설정만 저장하고 비동기 태스크는 사용하지 않음)
     _global_auto_control_status: Optional[GlobalAutoControlStatus] = None
     
-    def __new__(cls, machine_service: Optional[MachineService] = None):
+    def __new__(cls, machine_service: Optional[MachineService] = None, db_client: Optional[DatabaseClientManager] = None):
         if cls._instance is None:
             cls._instance = super(AutoControlService, cls).__new__(cls)
         return cls._instance
     
-    def __init__(self, machine_service: Optional[MachineService] = None):
+    def __init__(self, machine_service: Optional[MachineService] = None, db_client: Optional[DatabaseClientManager] = None):
         # 이미 초기화된 경우 스킵
         if AutoControlService._initialized and machine_service is None:
             return
             
         if machine_service:
             self.machine_service = machine_service
+            if db_client:
+                self.auto_controll_dao = AutoControllDAO(db_client)
             AutoControlService._initialized = True
     
     def configure_auto_control(self, config: GlobalAutoControlConfig) -> ServiceResult:
@@ -55,16 +60,21 @@ class AutoControlService:
     
     def toggle_auto_control(self, enabled: bool) -> ServiceResult:
         """자동 제어 모드를 켜거나 끕니다."""
-        if AutoControlService._global_auto_control_status is None:
-            return ServiceResult(
-                success=False,
-                message="자동 제어 설정이 구성되지 않았습니다"
-            )
         
-        AutoControlService._global_auto_control_status.enabled = enabled
+        AutoControlService._global_auto_control_status = GlobalAutoControlStatus(
+            enabled=enabled,
+            machines=[],
+            last_executed=None
+        )
         
         logger.info(f"자동 제어 상태 변경: 활성화={enabled}")
         
+        # 데이터베이스에도 상태 저장
+        if hasattr(self, 'auto_controll_dao'):
+            db_result = self.auto_controll_dao.set_autocontrol(enabled)
+            if not db_result.success:
+                logger.warning(f"데이터베이스 자동운전 상태 저장 실패: {db_result.message}")
+
         return ServiceResult(
             success=True, 
             message=f"자동 제어 모드가 {'활성화' if enabled else '비활성화'}되었습니다",
@@ -73,12 +83,25 @@ class AutoControlService:
     
     def get_auto_control_status(self) -> ServiceResult:
         """자동 제어 상태를 조회합니다."""
+        # 데이터베이스에서 상태 조회 시도
+        db_status = None
+
+        if hasattr(self, 'auto_controll_dao'):
+            db_result = self.auto_controll_dao.get_autocontrol()
+            if db_result.success and db_result.data:
+                db_status = db_result.data.get("enabled")
+
         if AutoControlService._global_auto_control_status is None:
-            return ServiceResult(
-                success=False,
-                message="자동 제어 설정이 구성되지 않았습니다"
-            )
-        
+            # 데이터베이스 상태가 있으면 그것을 반환
+            if db_status is not None:
+                # DB 상태 기반으로 메모리 상태 초기화
+                AutoControlService._global_auto_control_status = GlobalAutoControlStatus(
+                    enabled=db_status,
+                    machines=[],
+                    last_executed=None
+                )
+                logger.info("메모리 상태가 없어 데이터베이스 상태로 초기화했습니다.")
+            
         return ServiceResult(
             success=True,
             message="자동 제어 상태 조회 성공",
@@ -121,7 +144,7 @@ class AutoControlService:
                 machines=AutoControlService._global_auto_control_status.machines
             )
         
-        now = datetime.datetime.now()
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
         execution_log = {
             "timestamp": now.isoformat(),
             "controls": []
@@ -231,7 +254,7 @@ class AutoControlService:
                 return
             
             # 로그 파일 경로 설정
-            log_date = datetime.datetime.fromisoformat(timestamp).strftime("%Y%m%d")
+            log_date = datetime.fromisoformat(timestamp).strftime("%Y%m%d")
             log_file = f"{LOGS_DIR}/auto_control_{log_date}.parquet"
             
             # 각 제어 작업을 개별 로그 항목으로 변환

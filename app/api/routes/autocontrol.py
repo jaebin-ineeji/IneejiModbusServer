@@ -8,9 +8,10 @@ from app.services.modbus.machine import MachineService
 router = APIRouter(prefix="/autocontrol", tags=["autocontrol"])
 
 def get_auto_control_service(
-    machine_service: MachineService = Depends(lambda db=Depends(get_database_client): MachineService(db))
+    machine_service: MachineService = Depends(lambda db=Depends(get_database_client): MachineService(db)),
+    db_client = Depends(get_database_client),
 ) -> AutoControlService:
-    return AutoControlService(machine_service)
+    return AutoControlService(machine_service, db_client)
 
 @router.post(
     "",

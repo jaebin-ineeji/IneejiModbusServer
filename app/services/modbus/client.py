@@ -185,6 +185,15 @@ class DatabaseClientManager:
                     """
                     )
 
+                    cursor.execute(
+                        """
+                    CREATE TABLE autocontrol (
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        enabled BOOLEAN NOT NULL DEFAULT 0,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                    )
                     logger.info(
                         f"데이터베이스 '{self.db_name}'와 테이블들이 성공적으로 생성되었습니다."
                     )
