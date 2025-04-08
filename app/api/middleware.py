@@ -29,7 +29,8 @@ async def log_middleware(request: Request, call_next):
         "client_ip": request.client.host if request.client else "unknown",
         "body": body_str,
     }
-    logger.info(f"Request: {json.dumps(request_log, ensure_ascii=False)}")
+    if request.method == "POST":
+        logger.info(f"Request: {json.dumps(request_log, ensure_ascii=False)}")
 
     # 응답 처리
     response = await call_next(request)
@@ -48,7 +49,8 @@ async def log_middleware(request: Request, call_next):
         "process_time": f"{process_time:.3f}s",
         "response_body": response_body.decode(),
     }
-    logger.info(f"Response: {json.dumps(response_log, ensure_ascii=False)}")
+    if request.method == "POST":
+        logger.info(f"Response: {json.dumps(response_log, ensure_ascii=False)}")
 
     return Response(
         content=response_body,
