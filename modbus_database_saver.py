@@ -7,14 +7,16 @@ import os
 import signal
 import atexit
 import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.core.config import settings
 
 # 로그 디렉토리 설정
-LOG_DIR = '/home/dongwon/IneejiModbusTester/logs/dblog'
+LOG_DIR = f'{settings.PROJECT_DIR}/logs/dblog'
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # SQLite 데이터베이스 파일 경로
-DB_NAME = 'modbus_data'
-DB_FILE_ROOT = f'/home/dongwon/IneejiModbusTester/{DB_NAME}.db'
+DB_NAME = settings.SAVER_DB_NAME
+DB_FILE_ROOT = f'{settings.PROJECT_DIR}/{DB_NAME}'
 
 
 def setup_logger():
@@ -52,7 +54,7 @@ def is_save_time():
 def init_database():
     """데이터베이스와 테이블을 초기화합니다."""
     try:
-        conn = sqlite3.connect(DB_FILE_ROOT)
+        conn = sqlite3.connect(settings.PROJECT_DIR + "/" + settings.SAVER_DB_NAME)
         cursor = conn.cursor()
         
         # 테이블이 없으면 생성
@@ -180,7 +182,7 @@ def save_to_database(tag_values):
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logger.info(f"== ■ ■ □ 데이터 저장 시작 ==")
         # 데이터베이스 연결
-        conn = sqlite3.connect(DB_FILE_ROOT)
+        conn = sqlite3.connect(settings.PROJECT_DIR + "/" + settings.SAVER_DB_NAME)
         cursor = conn.cursor()
         
         # INSERT 쿼리 생성을 위한 컬럼과 값 준비

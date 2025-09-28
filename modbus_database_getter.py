@@ -2,8 +2,8 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 
-DB_NAME = 'modbus_data'
-DB_FILE_ROOT = f'/home/dongwon/IneejiModbusTester/{DB_NAME}.db'
+DB_NAME = 'modbus_data.db'
+DB_FILE_ROOT = f'/home/dongwon/IneejiModbusTester/{DB_NAME}'
 
 def _format_machine_name(name):
     """
