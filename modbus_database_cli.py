@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.core.config import settings
 
-
+# SQLite 데이터베이스 파일 경로
 DB_NAME = settings.SAVER_DB_NAME
 DB_FILE_ROOT = f'{settings.PROJECT_DIR}/{DB_NAME}.db'
 
@@ -45,7 +45,7 @@ def get_modbus_data(value_type='all', hours=1, start_time=None, end_time=None):
     # 현재 시간과 지정된 시간 전 계산
     now = datetime.now()
     
-    # end_time 처리
+        # end_time 처리
     if end_time is None:
         end_time = now
     elif isinstance(end_time, str):
@@ -137,9 +137,151 @@ def get_modbus_data(value_type='all', hours=1, start_time=None, end_time=None):
     
     return df
 
-# 사용 예시
-# pv만 조회하기
-pv_data = get_modbus_data('pv', hours=1)
-print("pv 데이터:")
-print(pv_data)
 
+if __name__ == "__main__":
+    import sys
+    import argparse
+    
+
+    # 인자가 없는 경우 대화형 입력 모드로 전환
+    if len(sys.argv) == 1:
+        print("\033[1;36m모드버스 데이터 조회 프로그램 - 대화형 모드\033[0m")
+        
+        # 값 타입 입력
+        while True:
+            value_type = input("\033[1;33m조회할 값 타입 (pv, sv, all) [기본값: all]: \033[0m").strip().lower()
+            if value_type == "":
+                value_type = "all"
+                break
+            if value_type in ['pv', 'sv', 'all']:
+                break
+            print("잘못된 입력입니다. 'pv', 'sv', 'all' 중에서 입력해주세요.")
+        
+        # 시간 입력
+        while True:
+            try:
+                hours_input = input("\033[1;33m몇 시간 전 데이터부터 가져올지 [기본값: 1]: \033[0m").strip()
+                hours = 1 if hours_input == "" else int(hours_input)
+                break
+            except ValueError:
+                print("숫자를 입력해주세요.")
+        
+        # 시작 시간 입력
+        start_time = input("\033[1;33m시작 시간 (YYYY-MM-DD HH:MM:SS) [미입력 시 hours 시간 전]: \033[0m").strip()
+        start_time = None if start_time == "" else start_time
+        
+        # 종료 시간 입력
+        end_time = input("\033[1;33m종료 시간 (YYYY-MM-DD HH:MM:SS) [미입력 시 현재 시간]: \033[0m").strip()
+        end_time = None if end_time == "" else end_time
+        
+        # 페이지 크기 입력
+        while True:
+            try:
+                page_size_input = input("\033[1;33m한 페이지에 표시할 행 수 [기본값: 10]: \033[0m").strip()
+                page_size = 10 if page_size_input == "" else int(page_size_input)
+                break
+            except ValueError:
+                print("숫자를 입력해주세요.")
+                
+        # 인수에 따라 함수 호출
+        result = get_modbus_data(
+            value_type=value_type,
+            hours=hours,
+            start_time=start_time,
+            end_time=end_time
+        )
+    else: 
+        # 기존 명령행 인자 처리 방식
+        parser = argparse.ArgumentParser(description='모드버스 데이터 조회 프로그램')
+        parser.add_argument('type', type=str, choices=['pv', 'sv', 'all'], nargs='?', default='all',
+                            help='조회할 값 타입 (pv, sv, all)')
+        parser.add_argument('hours', type=float, nargs='?', default=1,
+                            help='몇 시간 전 데이터부터 가져올지')
+        parser.add_argument('start', type=str, nargs='?', default=None,
+                            help='시작 시간 (YYYY-MM-DD HH:MM:SS 형식)')
+        parser.add_argument('end', type=str, nargs='?', default=None,
+                            help='종료 시간 (YYYY-MM-DD HH:MM:SS 형식)')
+        parser.add_argument('page_size', type=int, nargs='?', default=10,
+                            help='한 페이지에 표시할 행 수')
+        
+        # 기존 명령행 인자 형식도 계속 지원
+        parser.add_argument('--type', type=str, choices=['pv', 'sv', 'all'], dest='type_opt',
+                            help='조회할 값 타입 (pv, sv, all)')
+        parser.add_argument('--hours', type=float, dest='hours_opt',
+                            help='몇 시간 전 데이터부터 가져올지')
+        parser.add_argument('--start', type=str, dest='start_opt',
+                            help='시작 시간 (YYYY-MM-DD HH:MM:SS 형식)')
+        parser.add_argument('--end', type=str, dest='end_opt',
+                            help='종료 시간 (YYYY-MM-DD HH:MM:SS 형식)')
+        parser.add_argument('--page-size', type=int, dest='page_size_opt',
+                            help='한 페이지에 표시할 행 수')
+        
+        args = parser.parse_args()
+        
+        # 위치 인자와 옵션 인자 중 옵션 인자가 우선함
+        value_type = args.type_opt if args.type_opt is not None else args.type
+        hours = args.hours_opt if args.hours_opt is not None else args.hours
+        start_time = args.start_opt if args.start_opt is not None else args.start
+        end_time = args.end_opt if args.end_opt is not None else args.end
+        page_size = args.page_size_opt if args.page_size_opt is not None else args.page_size
+        
+        # 인수에 따라 함수 호출
+        result = get_modbus_data(
+            value_type=value_type,
+            hours=hours,
+            start_time=start_time,
+            end_time=end_time
+        )
+    
+    # 페이지 탐색 기능 구현
+    total_rows = len(result)
+    total_pages = (total_rows + page_size - 1) // page_size
+    current_page = 1
+    
+    try:
+        from tabulate import tabulate
+    
+        while True:
+            # 화면 지우기
+            os.system('cls' if os.name == 'nt' else 'clear')
+            
+            # 현재 페이지 정보 출력
+            print(f"\033[1;36m{value_type} 데이터 (페이지 {current_page}/{total_pages}, 총 {total_rows}행)\033[0m")
+            
+            # 현재 페이지 데이터 계산
+            start_idx = (current_page - 1) * page_size
+            end_idx = min(start_idx + page_size, total_rows)
+            
+            # 현재 페이지 데이터 출력 (인덱스 포함)
+            page_data = result.iloc[start_idx:end_idx]
+            print(tabulate(page_data.reset_index().values.tolist(), 
+                        headers=list(page_data.reset_index().columns), 
+                        tablefmt='fancy_grid', floatfmt='.1f'))
+            
+            # 명령어 안내
+            print("\n\033[1;33m명령어: [ n ]다음 페이지, [ b ]이전 페이지, [ q ]종료, [ g 숫자 ]특정 페이지로 이동\033[0m")
+            
+            # 사용자 입력 받기
+            cmd = input("> ").lower().strip()
+            
+            if cmd == 'q':
+                break
+            elif cmd == 'n' and current_page < total_pages:
+                current_page += 1
+            elif cmd == 'b' and current_page > 1:
+                current_page -= 1
+            elif cmd.startswith('g '):
+                try:
+                    page_num = int(cmd[2:])
+                    if 1 <= page_num <= total_pages:
+                        current_page = page_num
+                except ValueError:
+                    pass
+    
+    except ImportError:
+        print("tabulate 패키지가 설치되어 있지 않습니다.")
+        print("설치하려면: pip install tabulate")
+        print("\n기본 출력:")
+        print(result)
+    except KeyboardInterrupt:
+        print("\n프로그램을 종료합니다.")
