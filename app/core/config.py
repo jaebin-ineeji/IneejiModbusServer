@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     MODBUS_RETRY_COUNT: int = Field(default=3)
     MODBUS_SLAVE: int = Field(default=1)
 
+    PROJECT_DIR: str = Field(default="/home/dongwon/IneejiModbusTester")
+    SAVER_DB_NAME: str = Field(default="modbus_data.db")
+
     MODBUS_MACHINES: Dict[str, MachineConfig] = Field(default={})
 
     def update_machines_config(self, machines: Dict[str, MachineConfig]):
