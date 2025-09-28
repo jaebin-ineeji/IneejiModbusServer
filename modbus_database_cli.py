@@ -8,7 +8,7 @@ from app.core.config import settings
 
 
 DB_NAME = settings.SAVER_DB_NAME
-DB_FILE_ROOT = f'{settings.PROJECT_DIR}/{DB_NAME}'
+DB_FILE_ROOT = f'{settings.PROJECT_DIR}/{DB_NAME}.db'
 
 def _format_machine_name(name):
     """
@@ -62,7 +62,7 @@ def get_modbus_data(value_type='all', hours=1, start_time=None, end_time=None):
     end_time_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
 
     # 데이터베이스 연결
-    conn = sqlite3.connect(settings.PROJECT_DIR + "/" + settings.SAVER_DB_NAME)
+    conn = sqlite3.connect(DB_FILE_ROOT)
     
     # SQL 쿼리 실행
     if value_type.lower() == 'pv':

@@ -58,4 +58,4 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') - 데이터 수집기가 PID $NEW_PID로 시�
 # PID 파일에 저장 (종료 시 사용)
 echo $NEW_PID > "$PROJECT_DIR/saver.pid"
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') - 데이터 수집기 시작 완료 (상세 로그: /home/dongwon/IneejiModbusTester/logs/dblog/)"
+echo "$(date '+%Y-%m-%d %H:%M:%S') - 데이터 수집기 시작 완료 (상세 로그: $PROJECT_DIR/logs/dblog/)"

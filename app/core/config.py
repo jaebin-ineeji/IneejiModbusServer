@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     MODBUS_SLAVE: int = Field(default=1)
 
     PROJECT_DIR: str = Field(default="/home/dongwon/IneejiModbusTester")
-    SAVER_DB_NAME: str = Field(default="modbus_data.db")
+    SAVER_DB_NAME: str = Field(default="modbus_data")
 
     MODBUS_MACHINES: Dict[str, MachineConfig] = Field(default={})
 

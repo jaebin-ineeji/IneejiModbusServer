@@ -16,7 +16,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # SQLite 데이터베이스 파일 경로
 DB_NAME = settings.SAVER_DB_NAME
-DB_FILE_ROOT = f'{settings.PROJECT_DIR}/{DB_NAME}'
+DB_FILE_ROOT = f'{settings.PROJECT_DIR}/{DB_NAME}.db'
 
 
 def setup_logger():
@@ -54,7 +54,7 @@ def is_save_time():
 def init_database():
     """데이터베이스와 테이블을 초기화합니다."""
     try:
-        conn = sqlite3.connect(settings.PROJECT_DIR + "/" + settings.SAVER_DB_NAME)
+        conn = sqlite3.connect(DB_FILE_ROOT)
         cursor = conn.cursor()
         
         # 테이블이 없으면 생성
@@ -118,7 +118,7 @@ def init_database():
 def get_tag_values():
     """기계별 태그 값을 가져옵니다."""
     # 조회할 기계 이름들과 태그 이름들을 리스트로 설정
-    machine_names = ['oil_main', 'oil_1l', 'oil_2l','oil_3l','oil_4l','oil_5l','oil_1r','oil_2r','oil_3r','oil_4r','oxy_main','oxy_1l','oxy_2l','oxy_3l','oxy_4l','oxy_5l','oxy_1r','oxy_2r','oxy_3r','oxy_4r', 'arch_3']
+    machine_names = ['oil_main', 'oil_1l', 'oil_2l','oil_3l','oil_4l','oil_5l','oil_1r','oil_2r','oil_3r','oil_4r','oxy_main','oxy_1l','oxy_2l','oxy_3l','oxy_4l','oxy_5l','oxy_1r','oxy_2r','oxy_3r','oxy_4r'] # 3로에서는 'arch_3' 제외
     tag_names = ['pv', 'sv']
 
     # 최종 결과를 저장할 딕셔너리
@@ -182,7 +182,7 @@ def save_to_database(tag_values):
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logger.info(f"== ■ ■ □ 데이터 저장 시작 ==")
         # 데이터베이스 연결
-        conn = sqlite3.connect(settings.PROJECT_DIR + "/" + settings.SAVER_DB_NAME)
+        conn = sqlite3.connect(DB_FILE_ROOT)
         cursor = conn.cursor()
         
         # INSERT 쿼리 생성을 위한 컬럼과 값 준비
